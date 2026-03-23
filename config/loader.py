@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 from .schema import SaiConfig
 
 
@@ -62,6 +64,7 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 
 def load_config(config_path: str | Path = "sai.toml") -> SaiConfig:
     """Load and validate configuration from file + environment."""
+    load_dotenv(override=False)  # load .env before reading os.environ
     file_data = _load_toml(Path(config_path))
     env_data = _env_overrides()
     merged = _deep_merge(file_data, env_data)
