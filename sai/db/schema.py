@@ -161,10 +161,16 @@ def init_schema(embed_dim: int = _DEFAULT_EMBED_DIM) -> None:
     """Create all tables and indexes. Safe to call repeatedly."""
     conn = connection_manager.conn
     with connection_manager.lock:
+        # Migrations must run BEFORE the DDL loop so that any new indexes
+        # that reference migrated columns can be created successfully.
+        # If the table does not yet exist the ALTER TABLE fails silently —
+        # the column will be included in the CREATE TABLE below.
+        try:
+            conn.execute(
+                "ALTER TABLE memory_records ADD COLUMN IF NOT EXISTS thread_ts VARCHAR"
+            )
+        except Exception:
+            pass  # table absent — will be created with the column in _build_ddl
+
         for stmt in _split_statements(_build_ddl(embed_dim)):
             conn.execute(stmt)
-        # Migrations: add columns introduced after initial schema creation.
-        # ALTER TABLE ADD COLUMN IF NOT EXISTS is idempotent in DuckDB.
-        conn.execute(
-            "ALTER TABLE memory_records ADD COLUMN IF NOT EXISTS thread_ts VARCHAR"
-        )
