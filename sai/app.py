@@ -16,13 +16,13 @@ Processing order (security rules — never reorder):
 from typing import Optional
 
 from .commands.executor import CommandExecutor
-from .commands.interpreter import CommandInterpreter
 from .commands.registry import CommandRegistry
 from .db.repositories.memory import MemoryRepository
 from .db.repositories.embedding import EmbeddingRepository
 from .db.repositories.command_log import CommandLogRepository
 from .llm import nonce as nonce_mod, prompts
 from .llm.client import LLMClient
+from .llm.planner import ActionPlanner
 from .llm.sanitizer import sanitize
 from .memory.models import MemoryRecord, MemoryState
 from .rag.retriever import Retriever
@@ -52,7 +52,7 @@ class Application:
         embedding_repo: EmbeddingRepository,
         command_log_repo: CommandLogRepository,
         command_registry: CommandRegistry,
-        command_interpreter: CommandInterpreter,
+        planner: ActionPlanner,
         command_executor: CommandExecutor,
         pin_reactions: list[str],
         max_input_chars: int = 2000,
@@ -69,7 +69,7 @@ class Application:
         self._embeddings = embedding_repo
         self._cmd_log = command_log_repo
         self._cmd_registry = command_registry
-        self._cmd_interpreter = command_interpreter
+        self._planner = planner
         self._cmd_executor = command_executor
         self._pin_reactions = set(pin_reactions)
         self._max_input_chars = max_input_chars
@@ -155,8 +155,6 @@ class Application:
     # ------------------------------------------------------------------
 
     async def _handle_mention(self, event: SlackEvent, user) -> None:
-        user_name = user.user_name if user else event.user_id
-
         # Also store the mention itself in memory
         await self._handle_message(event, user)
 
@@ -180,16 +178,28 @@ class Application:
             return
 
         clean_text = sanitized.clean
+        now = utcnow().astimezone()
+        current_datetime = now.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-        # ── 4b. Try command interpretation first ─────────────────────
-        if self._cmd_registry.commands:
-            match = await self._cmd_interpreter.interpret(clean_text)
-            if match:
+        # ── 4b. Hierarchical intent analysis + action planning ────────
+        plan = await self._planner.plan(clean_text, current_datetime=current_datetime)
+
+        if plan.action == "command":
+            command = self._cmd_registry.get_by_index(plan.command_index)
+            if command:
+                from .commands.interpreter import CommandMatch
+                match = CommandMatch(command=command, args=plan.args)
                 await self._handle_command(event, match, clean_text)
                 return
+            # Command index resolved to nothing — fall through to RAG
+            logger.warning("app.plan_command_not_found", index=plan.command_index)
 
-        # ── 4c. RAG answer ───────────────────────────────────────────
-        await self._handle_rag_answer(event, clean_text)
+        # ── 4c. RAG answer (for "rag" or "none" or fallback) ─────────
+        await self._handle_rag_answer(
+            event,
+            plan.rag_query or clean_text,
+            current_datetime=current_datetime,
+        )
 
     async def _handle_command(self, event: SlackEvent, match, clean_text: str) -> None:
         # Check per-command user allowlist
@@ -227,14 +237,19 @@ class Application:
             thread_ts=event.thread_ts or event.ts,
         )
 
-    async def _handle_rag_answer(self, event: SlackEvent, clean_text: str) -> None:
+    async def _handle_rag_answer(
+        self,
+        event: SlackEvent,
+        clean_text: str,
+        current_datetime: Optional[str] = None,
+    ) -> None:
         # Retrieve relevant memories
         context_records = await self._retriever.retrieve(clean_text)
         context_snippets = [r.content for r in context_records]
 
         request_nonce = nonce_mod.generate()
-        now = utcnow().astimezone()  # local time with tz offset
-        current_datetime = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+        if current_datetime is None:
+            current_datetime = utcnow().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
         messages = prompts.build_rag_answer_prompt(
             user_text=clean_text,
             context_snippets=context_snippets,

@@ -15,8 +15,8 @@ from config.schema import SaiConfig
 
 from .app import Application
 from .commands.executor import CommandExecutor
-from .commands.interpreter import CommandInterpreter
 from .commands.registry import CommandRegistry
+from .llm.planner import ActionPlanner
 from .db import connection_manager, init_schema
 from .db.repositories import (
     ACLRepository, ChannelRepository, CommandLogRepository,
@@ -113,7 +113,7 @@ def build_application(cfg: SaiConfig) -> _AppBundle:
     # --- Commands ---
     cmd_registry = CommandRegistry(cfg.commands.scripts_dir)
     cmd_registry.load()
-    cmd_interpreter = CommandInterpreter(llm, cmd_registry, cfg.slack.workspace_name)
+    planner = ActionPlanner(llm, cmd_registry, cfg.slack.workspace_name)
     cmd_executor = CommandExecutor(
         cmd_registry, process_guard,
         sandbox_dir=cfg.commands.sandbox_dir,
@@ -132,7 +132,7 @@ def build_application(cfg: SaiConfig) -> _AppBundle:
         embedding_repo=embedding_repo,
         command_log_repo=cmd_log_repo,
         command_registry=cmd_registry,
-        command_interpreter=cmd_interpreter,
+        planner=planner,
         command_executor=cmd_executor,
         pin_reactions=cfg.memory.pin_reactions,
         max_input_chars=cfg.security.max_input_chars,
