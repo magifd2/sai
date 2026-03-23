@@ -244,3 +244,58 @@ class MemoryRepository(BaseRepository):
                 [limit],
             )
         return [_row_to_record(r) for r in rows]
+
+    async def count_by_state(self) -> dict[str, int]:
+        """Return record count per state."""
+        rows = await self._run(
+            self._execute,
+            "SELECT state, COUNT(*) FROM memory_records GROUP BY state",
+            [],
+        )
+        return {row[0]: int(row[1]) for row in rows}
+
+    async def count_archive(self) -> int:
+        """Return total number of archived records."""
+        rows = await self._run(
+            self._execute,
+            "SELECT COUNT(*) FROM memory_archive",
+            [],
+        )
+        return int(rows[0][0]) if rows else 0
+
+    async def find_by_id_prefix(self, prefix: str) -> list[MemoryRecord]:
+        """Return records whose ID starts with the given prefix."""
+        rows = await self._run(
+            self._execute,
+            f"{_SELECT} WHERE id LIKE ?",
+            [prefix + "%"],
+        )
+        return [_row_to_record(r) for r in rows]
+
+    async def find_filtered(
+        self,
+        state: Optional[MemoryState] = None,
+        user_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        limit: int = 20,
+    ) -> list[MemoryRecord]:
+        """Return records matching optional filters, newest first."""
+        where_parts: list[str] = []
+        params: list = []
+        if state:
+            where_parts.append("state = ?")
+            params.append(state.value)
+        if user_id:
+            where_parts.append("user_id = ?")
+            params.append(user_id)
+        if channel_id:
+            where_parts.append("channel_id = ?")
+            params.append(channel_id)
+        where = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+        params.append(limit)
+        rows = await self._run(
+            self._execute,
+            f"{_SELECT} {where} ORDER BY created_at DESC LIMIT ?",
+            params,
+        )
+        return [_row_to_record(r) for r in rows]

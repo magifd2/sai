@@ -239,6 +239,123 @@ def init_db(db_path: str, embed_dim: int) -> None:
     click.echo(f"Database initialized at: {db_path}")
 
 
+@cli.group()
+def memory() -> None:
+    """Inspect and monitor memory contents (run while SAI is stopped)."""
+
+
+def _init_db_only(db_path: str) -> MemoryRepository:
+    """Open the database in read-only mode and return a MemoryRepository.
+
+    Read-only mode allows monitoring commands to run while SAI is active.
+    """
+    connection_manager.initialize(db_path, read_only=True)
+    return MemoryRepository()
+
+
+@memory.command("stats")
+@click.option("--db-path", default="./data/sai.db", show_default=True, help="Database file path")
+def memory_stats(db_path: str) -> None:
+    """Show record counts grouped by memory state."""
+    repo = _init_db_only(db_path)
+
+    async def _run() -> None:
+        counts = await repo.count_by_state()
+        archive = await repo.count_archive()
+        states = ["hot", "warm", "cold", "pinned"]
+        active_total = sum(counts.get(s, 0) for s in states)
+
+        click.echo(f"{'State':<10} {'Count':>6}")
+        click.echo("-" * 18)
+        for s in states:
+            click.echo(f"{s.upper():<10} {counts.get(s, 0):>6}")
+        click.echo("-" * 18)
+        click.echo(f"{'ACTIVE':<10} {active_total:>6}")
+        click.echo(f"{'ARCHIVE':<10} {archive:>6}")
+
+    asyncio.run(_run())
+
+
+@memory.command("list")
+@click.option("--db-path", default="./data/sai.db", show_default=True, help="Database file path")
+@click.option("--state", "state_filter", default=None,
+              type=click.Choice(["hot", "warm", "cold", "pinned"], case_sensitive=False),
+              help="Filter by state")
+@click.option("--user", "user_id", default=None, help="Filter by user ID")
+@click.option("--channel", "channel_id", default=None, help="Filter by channel ID")
+@click.option("--limit", default=20, show_default=True, help="Max records to show")
+def memory_list(db_path: str, state_filter: Optional[str], user_id: Optional[str],
+                channel_id: Optional[str], limit: int) -> None:
+    """List memory records (newest first)."""
+    from .memory.models import MemoryState
+    repo = _init_db_only(db_path)
+
+    async def _run() -> None:
+        state = MemoryState(state_filter) if state_filter else None
+        records = await repo.find_filtered(
+            state=state, user_id=user_id, channel_id=channel_id, limit=limit
+        )
+        if not records:
+            click.echo("No records found.")
+            return
+
+        click.echo(f"{'ID':<12} {'Created':<20} {'State':<7} {'User':<16} {'Channel':<16} Content")
+        click.echo("-" * 110)
+        for r in records:
+            ts = r.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            ch = r.channel_name or r.channel_id
+            content_preview = r.content.replace("\n", " ")[:45]
+            if len(r.content) > 45:
+                content_preview += "…"
+            click.echo(f"{r.id[:10]:<12} {ts:<20} {r.state.value:<7} {r.user_name:<16} {ch:<16} {content_preview}")
+
+    asyncio.run(_run())
+
+
+@memory.command("show")
+@click.argument("record_id")
+@click.option("--db-path", default="./data/sai.db", show_default=True, help="Database file path")
+def memory_show(record_id: str, db_path: str) -> None:
+    """Show full details of a single memory record."""
+    repo = _init_db_only(db_path)
+
+    async def _run() -> None:
+        # Support full ID or unambiguous prefix
+        record = await repo.get_by_id(record_id)
+        if record is None:
+            matches = await repo.find_by_id_prefix(record_id)
+            if len(matches) == 1:
+                record = matches[0]
+            elif len(matches) > 1:
+                click.echo(f"Ambiguous prefix '{record_id}' matches {len(matches)} records:", err=True)
+                for m in matches:
+                    click.echo(f"  {m.id}", err=True)
+                raise SystemExit(1)
+            else:
+                click.echo(f"Record not found: {record_id}", err=True)
+                raise SystemExit(1)
+
+        click.echo(f"ID          : {record.id}")
+        click.echo(f"State       : {record.state.value}")
+        click.echo(f"User        : {record.user_name} ({record.user_id})")
+        click.echo(f"Channel     : {record.channel_name or ''} ({record.channel_id})")
+        click.echo(f"Created     : {record.created_at.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        click.echo(f"Is summary  : {record.is_summary}")
+        if record.summary_of:
+            click.echo(f"Summary of  : {', '.join(record.summary_of)}")
+        if record.pinned_at:
+            click.echo(f"Pinned at   : {record.pinned_at.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+            click.echo(f"Pinned by   : {record.pinned_by}")
+            click.echo(f"Reaction    : {record.pin_reaction}")
+        click.echo(f"Embedding   : {record.embedding_id or '(none)'}")
+        click.echo("")
+        click.echo("Content:")
+        click.echo("-" * 60)
+        click.echo(record.content)
+
+    asyncio.run(_run())
+
+
 @cli.command()
 @click.option("--config", "config_path", default="sai.toml", help="Config file path")
 def check(config_path: str) -> None:

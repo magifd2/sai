@@ -21,22 +21,28 @@ class _ConnectionManager:
         self._lock = threading.Lock()
         self._db_path: Optional[str] = None
 
-    def initialize(self, db_path: str) -> None:
-        """Open (or create) the database file and install extensions."""
+    def initialize(self, db_path: str, read_only: bool = False) -> None:
+        """Open (or create) the database file and install extensions.
+
+        Pass read_only=True to open a shared read-only connection.
+        This allows monitoring tools to run while SAI is active.
+        """
         if self._conn is not None:
             return  # already initialized
 
         path = Path(db_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        if not read_only:
+            path.parent.mkdir(parents=True, exist_ok=True)
 
         self._db_path = db_path
-        self._conn = duckdb.connect(db_path)
+        self._conn = duckdb.connect(db_path, read_only=read_only)
 
-        # Install and load the VSS (Vector Similarity Search) extension
-        self._conn.execute("INSTALL vss;")
-        self._conn.execute("LOAD vss;")
-        # Required to persist HNSW indexes to disk (experimental in DuckDB VSS)
-        self._conn.execute("SET hnsw_enable_experimental_persistence = true;")
+        if not read_only:
+            # Install and load the VSS (Vector Similarity Search) extension
+            self._conn.execute("INSTALL vss;")
+            self._conn.execute("LOAD vss;")
+            # Required to persist HNSW indexes to disk (experimental in DuckDB VSS)
+            self._conn.execute("SET hnsw_enable_experimental_persistence = true;")
 
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
