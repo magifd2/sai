@@ -39,7 +39,7 @@
 ### プロンプト・LLM
 - ユーザー入力を直接 f-string でプロンプトに埋め込まない
 - プロンプトテンプレートは `sai/llm/prompts.py` のみに記述
-- ユーザー入力は必ず `Sanitizer` → `NonceManager.wrap()` を通してからプロンプトへ
+- ユーザー入力は必ず `sanitize()` → `nonce_mod.wrap()` を通してからプロンプトへ
 
 ### シェル実行
 - `subprocess.run()` は `shell=False`、引数リスト形式のみ
@@ -93,13 +93,21 @@ uv run pytest --cov=sai --cov-report=term-missing  # カバレッジ
 ## 5. Git・チェンジログ規約
 
 ### コミットメッセージ
-```
-[PhaseN] component: 変更内容の簡潔な説明
 
-例:
-[Phase0] config: add SAI_ prefix to all env vars
-[Phase2] security/acl: add blacklist persistence
-[Phase4] memory: implement hot→warm lifecycle transition
+[Conventional Commits](https://www.conventionalcommits.org/) 形式を使用：
+
+```
+<type>: 変更内容の簡潔な説明（英語）
+
+type: feat, fix, chore, docs, refactor, test, perf
+```
+
+例：
+```
+feat: add response_language config with auto-detect fallback
+fix: correct Slack table block cell format
+chore: prepare v0.1.0 release
+docs: update development rules
 ```
 
 ### ブランチ戦略
@@ -124,14 +132,15 @@ uv run pytest --cov=sai --cov-report=term-missing  # カバレッジ
 
 | ドキュメント | 場所 | 更新タイミング |
 |-------------|------|---------------|
-| 機能説明 | `docs/features/` | 機能追加・変更時 |
-| アーキテクチャ | `docs/architecture.md` | 構造変更時 |
-| データ定義 | `docs/data-model.md` | スキーマ変更時 |
-| API仕様 | `docs/api.md` | インターフェース変更時 |
-| 開発ルール | `docs/development-rules.md` | ルール変更時 |
+| ユーザーガイド（英語） | `README.md` | ユーザー向け機能追加・変更時 |
+| ユーザーガイド（日本語） | `README.ja.md` | 同上 — 英語版と常に同期する |
+| Slackアプリセットアップ | `docs/slack-setup.md` / `.ja.md` | セットアップ手順変更時 |
+| 開発ルール | `docs/development-rules.md` / `.ja.md` | ルール変更時 |
 | チェンジログ | `CHANGELOG.md` | リリース時 |
+| AIエージェント向けルール | `AGENTS.md` | アーキテクチャ・ルール変更時 |
 
 - **機能追加・変更があれば必ずドキュメントを更新する**
+- ユーザー向けドキュメントはすべて英語版・日本語版の両方を提供する
 - コードのコメントは自明でないロジックにのみ付ける
 - 公開関数には簡潔なdocstringを付ける（型は型アノテーションで表現）
 

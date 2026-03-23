@@ -39,7 +39,7 @@ This document defines the coding standards, conventions, and rules for the SAI p
 ### Prompts & LLM
 - Never interpolate user input directly into a prompt f-string
 - All prompt templates live exclusively in `sai/llm/prompts.py`
-- User input must pass through `Sanitizer` → `NonceManager.wrap()` before reaching any prompt
+- User input must pass through `sanitize()` → `nonce_mod.wrap()` before reaching any prompt
 
 ### Shell Execution
 - `subprocess` calls must use `shell=False` with an argument list
@@ -96,13 +96,20 @@ uv run pytest --cov=sai --cov-report=term-missing   # with coverage
 
 ### Commit Messages
 
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
 ```
-[PhaseN] component: concise description of the change
+<type>: concise description
+
+Types: feat, fix, chore, docs, refactor, test, perf
+```
 
 Examples:
-[Phase0] config: add SAI_ prefix to all env vars
-[Phase2] security/acl: add blacklist persistence
-[Phase4] memory: implement hot→warm lifecycle transition
+```
+feat: add response_language config with auto-detect fallback
+fix: correct Slack table block cell format
+chore: prepare v0.1.0 release
+docs: update development rules
 ```
 
 ### Branch Strategy
@@ -127,15 +134,15 @@ Sections per release:
 
 | Document | Location | When to update |
 |----------|----------|----------------|
-| Feature descriptions | `docs/features/` | On feature add/change |
-| Architecture | `docs/architecture.md` | On structural change |
-| Data model | `docs/data-model.md` | On schema change |
-| API spec | `docs/api.md` | On interface change |
-| Development rules | `docs/development-rules.md` | On rule change |
+| User guide (EN) | `README.md` | On user-facing feature add/change |
+| User guide (JA) | `README.ja.md` | Same — always keep in sync with EN |
+| Slack app setup | `docs/slack-setup.md` / `.ja.md` | On setup flow change |
+| Development rules | `docs/development-rules.md` / `.ja.md` | On rule change |
 | Changelog | `CHANGELOG.md` | On release |
+| Project rules for AI | `AGENTS.md` | On architecture/rule change |
 
 - **Always update documentation when adding or changing a feature**
-- All documents are provided in both English (`*.md`) and Japanese (`*.ja.md`)
+- All user-facing documents are provided in both English (`*.md`) and Japanese (`*.ja.md`)
 - Code comments only where logic is non-obvious
 - Public functions get a concise docstring; types are expressed via annotations
 

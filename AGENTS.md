@@ -139,16 +139,14 @@ Each file links to its counterpart at the top.
 
 ## Commit Message Format
 
-```
-[PhaseN] component: concise description
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
-Examples:
-[Phase2] security/acl: add remove-from-whitelist command
-[Phase4] memory: fix warm→cold cutoff calculation
-[Phase6] commands: support optional args in registry
+```
+<type>: concise description
+
+Types: feat, fix, chore, docs, refactor, test, perf
 ```
 
-- Always reference the phase and component
 - Use English for commit messages
 - Update `CHANGELOG.md` under `[Unreleased]` for every meaningful change
 
