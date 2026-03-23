@@ -1,11 +1,15 @@
 """LLM-based batch summarization for memory aging (HOT → WARM)."""
 
-from ..llm.client import LLMClient
+from ..llm.client import ChatMessage, LLMClient
 from ..llm import nonce as nonce_mod, prompts
+from ..llm.output_parser import is_empty
 from ..utils.logging import get_logger
 from .models import MemoryRecord
 
 logger = get_logger(__name__)
+
+_MIN_SUMMARY_CHARS = 20   # summaries shorter than this are treated as failures
+_MAX_SUMMARIZE_ATTEMPTS = 2
 
 
 class Summarizer:
@@ -20,6 +24,9 @@ class Summarizer:
         Records are formatted as:
             [YYYY-MM-DD HH:MM] @username: message
         then wrapped with a nonce for injection protection.
+
+        If the LLM returns an empty or suspiciously short response, retries
+        once with a reminder. Falls back to a plain concatenation as last resort.
         """
         if not records:
             return ""
@@ -43,5 +50,32 @@ class Summarizer:
             nonce=request_nonce[:8] + "...",
         )
 
-        summary = await self._llm.chat(messages, nonce=request_nonce)
-        return summary
+        for attempt in range(1, _MAX_SUMMARIZE_ATTEMPTS + 1):
+            summary = await self._llm.chat(messages, nonce=request_nonce)
+
+            if not is_empty(summary) and len(summary.strip()) >= _MIN_SUMMARY_CHARS:
+                return summary.strip()
+
+            logger.warning(
+                "summarizer.bad_response",
+                attempt=attempt,
+                length=len(summary),
+                snippet=summary[:60],
+            )
+
+            if attempt < _MAX_SUMMARIZE_ATTEMPTS:
+                # Append a correction turn and retry
+                messages = messages + [
+                    ChatMessage(role="assistant", content=summary),
+                    ChatMessage(
+                        role="user",
+                        content=(
+                            "Your summary appears to be empty or incomplete. "
+                            "Please provide a proper summary of the conversation records."
+                        ),
+                    ),
+                ]
+
+        # Last resort: plain concatenation (never loses data)
+        logger.error("summarizer.fallback_to_concat", record_count=len(records))
+        return records_text
