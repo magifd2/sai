@@ -9,10 +9,23 @@ Security architecture:
   - Model is told the exact nonce so it can identify content boundaries
 """
 
+import re
 from typing import Optional
 
 from .client import ChatMessage
 from . import nonce as nonce_mod
+
+# Hiragana / Katakana / CJK Unified Ideographs
+_JP_RE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
+
+
+def _reply_lang_instruction(text: str) -> str:
+    """Return an explicit reply-language instruction appended to the user message.
+    Detected per-request so the model sees it in the user turn, where small
+    local models tend to pay more attention than to the system prompt."""
+    if _JP_RE.search(text):
+        return "\n\n（必ず日本語で回答してください）"
+    return "\n\n(Reply in English.)"
 
 
 def _security_preamble(
@@ -81,6 +94,7 @@ def build_rag_answer_prompt(
     user_content = (
         f"Context from memory:\n{wrapped_context}\n\n"
         f"User question:\n{wrapped_user}"
+        f"{_reply_lang_instruction(user_text)}"
     )
 
     return [
