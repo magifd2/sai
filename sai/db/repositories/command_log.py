@@ -2,10 +2,18 @@
 
 from typing import Optional
 
-from ...utils.time import to_unix, utcnow
-from ...utils.ids import new_id
-from .base import BaseRepository
 from pydantic import BaseModel
+
+from ...utils.ids import new_id
+from ...utils.time import to_unix, utcnow
+from .base import BaseRepository
+
+_COLS = (
+    "id, user_id, channel_id, requested_at, nl_input, "
+    "matched_command, script_path, exit_code, "
+    "stdout_snippet, stderr_snippet, nonce"
+)
+_SELECT = f"SELECT {_COLS} FROM command_log"
 
 
 class CommandLogEntry(BaseModel):
@@ -59,7 +67,7 @@ class CommandLogRepository(BaseRepository):
     async def recent(self, user_id: str, limit: int = 20) -> list[CommandLogEntry]:
         rows = await self._run(
             self._execute,
-            "SELECT * FROM command_log WHERE user_id = ? ORDER BY requested_at DESC LIMIT ?",
+            f"{_SELECT} WHERE user_id = ? ORDER BY requested_at DESC LIMIT ?",
             [user_id, limit],
         )
         return [

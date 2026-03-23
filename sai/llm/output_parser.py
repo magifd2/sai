@@ -14,7 +14,7 @@ Key utilities:
 
 import json
 import re
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Optional, TypeVar
 
 from ..utils.logging import get_logger
 
@@ -252,5 +252,3 @@ def _try_json_repair(text: str) -> Optional[Any]:
     return None
 
 
-# ── Type stub for Awaitable (avoid runtime import of typing_extensions) ──────
-from typing import Awaitable  # noqa: E402 (needed after class definitions)

@@ -12,10 +12,12 @@ Memory states:
 
 from .connection import connection_manager
 
-# Embedding dimension for text-embedding-nomic-embed-text-v1.5
-EMBED_DIM = 768
+# Default embedding dimension (text-embedding-nomic-embed-text-v1.5 produces 768-dim vectors)
+_DEFAULT_EMBED_DIM = 768
 
-_DDL = f"""
+
+def _build_ddl(embed_dim: int) -> str:
+    return f"""
 -- ----------------------------------------------------------------
 -- Active memory records
 -- ----------------------------------------------------------------
@@ -69,7 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_arc_time ON memory_archive (created_at);
 CREATE TABLE IF NOT EXISTS memory_embeddings (
     embedding_id VARCHAR PRIMARY KEY,
     record_id    VARCHAR NOT NULL,
-    embedding    FLOAT[{EMBED_DIM}] NOT NULL
+    embedding    FLOAT[{embed_dim}] NOT NULL
 );
 -- HNSW index for approximate nearest-neighbour search
 CREATE INDEX IF NOT EXISTS idx_embed_hnsw
@@ -153,9 +155,9 @@ def _split_statements(sql: str) -> list[str]:
     return statements
 
 
-def init_schema() -> None:
+def init_schema(embed_dim: int = _DEFAULT_EMBED_DIM) -> None:
     """Create all tables and indexes. Safe to call repeatedly."""
     conn = connection_manager.conn
     with connection_manager.lock:
-        for stmt in _split_statements(_DDL):
+        for stmt in _split_statements(_build_ddl(embed_dim)):
             conn.execute(stmt)

@@ -2,6 +2,7 @@
 
 import asyncio
 import signal
+from dataclasses import dataclass
 from typing import Optional
 
 import click
@@ -37,12 +38,23 @@ from .utils.logging import get_logger, setup_logging
 logger = get_logger(__name__)
 
 
-def build_application(cfg: SaiConfig) -> tuple[Application, MemoryScheduler]:
+@dataclass
+class _AppBundle:
+    """All wired-up components returned by build_application."""
+    app: Application
+    scheduler: MemoryScheduler
+    acl: ACLManager
+    cache: CacheManager
+    slack_client: SlackClient
+    llm: LLMClient
+
+
+def build_application(cfg: SaiConfig) -> _AppBundle:
     """Construct and wire all application components from config."""
 
     # --- DB ---
     connection_manager.initialize(cfg.database.path)
-    init_schema()
+    init_schema(embed_dim=cfg.llm.embed_dim)
 
     # --- Repositories ---
     memory_repo = MemoryRepository()
@@ -93,6 +105,7 @@ def build_application(cfg: SaiConfig) -> tuple[Application, MemoryScheduler]:
     )
     scheduler = MemoryScheduler(
         lifecycle,
+        process_guard,
         aging_interval_minutes=cfg.memory.aging_check_interval_minutes,
         archive_interval_hours=cfg.memory.archive_check_interval_hours,
     )
@@ -127,35 +140,36 @@ def build_application(cfg: SaiConfig) -> tuple[Application, MemoryScheduler]:
         workspace_name=cfg.slack.workspace_name,
     )
 
-    return app, scheduler
+    return _AppBundle(
+        app=app,
+        scheduler=scheduler,
+        acl=acl,
+        cache=cache,
+        slack_client=slack_client,
+        llm=llm,
+    )
 
 
 async def run(cfg: SaiConfig) -> None:
     """Async main: start Socket Mode listener and background scheduler."""
-    app, scheduler = build_application(cfg)
+    bundle = build_application(cfg)
 
-    # Seed ACL from config
-    acl_repo = ACLRepository()
-    acl = ACLManager(acl_repo, whitelist_mode=cfg.security.whitelist_mode)
-    await acl.seed_from_config(
+    # Seed ACL from config (uses the already-constructed ACL manager)
+    await bundle.acl.seed_from_config(
         cfg.security.default_whitelist,
         cfg.security.default_blacklist,
     )
 
-    # Warm up caches
-    slack_client = SlackClient(cfg.slack.bot_token)
-    user_repo = UserRepository()
-    channel_repo = ChannelRepository()
-    cache = CacheManager(slack_client, user_repo, channel_repo)
-    await cache.warm_up()
+    # Warm up caches (uses the already-constructed cache manager)
+    await bundle.cache.warm_up()
 
-    # Start memory background scheduler
-    scheduler.start()
+    # Start memory background scheduler (includes process guard cleanup)
+    bundle.scheduler.start()
 
-    # Start Socket Mode
+    # Start Socket Mode (reuse the already-created Slack WebClient)
     socket_client = SocketModeClient(
         app_token=cfg.slack.app_token,
-        web_client=slack_client._client,
+        web_client=bundle.slack_client._client,
     )
 
     async def _on_event(client: SocketModeClient, req: SocketModeRequest) -> None:
@@ -170,7 +184,7 @@ async def run(cfg: SaiConfig) -> None:
             return
 
         try:
-            await app.handle_event(event)
+            await bundle.app.handle_event(event)
         except Exception as exc:
             logger.error("app.unhandled_exception", error=str(exc), exc_info=True)
 
@@ -193,9 +207,9 @@ async def run(cfg: SaiConfig) -> None:
     logger.info("sai.ready")
     await stop_event.wait()
 
-    scheduler.stop()
+    bundle.scheduler.stop()
     await socket_client.disconnect()
-    await slack_client._client.session.close() if hasattr(slack_client._client, "session") else None
+    await bundle.llm.aclose()
     connection_manager.close()
     logger.info("sai.stopped")
 
@@ -221,7 +235,7 @@ def init_db(config_path: str) -> None:
     cfg = load_config(config_path)
     setup_logging(cfg.log_level)
     connection_manager.initialize(cfg.database.path)
-    init_schema()
+    init_schema(embed_dim=cfg.llm.embed_dim)
     click.echo(f"Database initialized at: {cfg.database.path}")
 
 
@@ -239,9 +253,11 @@ def check(config_path: str) -> None:
             model=cfg.llm.model,
             embed_model=cfg.llm.embed_model,
         )
-        ok = await llm.health_check()
-        status = ":white_check_mark: reachable" if ok else ":x: unreachable"
-        click.echo(f"LLM endpoint ({cfg.llm.base_url}): {status}")
-        await llm.aclose()
+        try:
+            ok = await llm.health_check()
+            status = "reachable" if ok else "unreachable"
+            click.echo(f"LLM endpoint ({cfg.llm.base_url}): {status}")
+        finally:
+            await llm.aclose()
 
     asyncio.run(_check())

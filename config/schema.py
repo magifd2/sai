@@ -29,6 +29,10 @@ class LLMConfig(BaseModel):
         default="text-embedding-nomic-embed-text-v1.5",
         description="Embedding model name",
     )
+    embed_dim: int = Field(
+        default=768,
+        description="Embedding vector dimension (must match the embed_model output size)",
+    )
     max_tokens: int = Field(default=4096, description="Max tokens per LLM response")
     temperature: float = Field(default=0.2, description="Sampling temperature")
     timeout_chat: int = Field(default=120, description="Chat request timeout in seconds")
@@ -66,8 +70,6 @@ class MemoryConfig(BaseModel):
 
 
 class RagConfig(BaseModel):
-    chroma_path: str = Field(default="./data/chroma", description="ChromaDB persistence directory")
-    collection_name: str = Field(default="sai_memories", description="ChromaDB collection name")
     n_results_default: int = Field(default=5, description="Default number of RAG results to retrieve")
     similarity_threshold: float = Field(
         default=0.7, description="Minimum similarity score for RAG results (0-1)"

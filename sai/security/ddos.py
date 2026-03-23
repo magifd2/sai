@@ -30,9 +30,6 @@ class RateLimiter:
         self._limit_minute = limit_per_minute
         self._limit_hour = limit_per_hour
 
-        # In-memory fast-path: {user_id: {window_start: count}}
-        self._cache: dict[str, dict[float, int]] = {}
-
     def _minute_window(self, ts: float) -> float:
         """Floor timestamp to the current 60-second window."""
         return math.floor(ts / 60) * 60
