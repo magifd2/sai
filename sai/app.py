@@ -79,6 +79,10 @@ class Application:
         self._block_on_injection = block_on_injection
         self._workspace_name = workspace_name
         self._response_language = response_language
+        # Startup wall-clock time: events with ts older than this minus grace period
+        # are stale (queued while the bot was offline) and should be discarded.
+        self._startup_wall_time: float = time.time()
+        self._stale_event_grace_s: float = 30.0  # accept events up to 30 s before startup
         # Dedup cache: protects against Slack SDK re-delivering events on reconnect.
         # Keys are "ts#channel_id"; values are the monotonic time of first processing.
         self._seen_events: OrderedDict[str, float] = OrderedDict()
@@ -118,7 +122,23 @@ class Application:
     async def handle_event(self, event: SlackEvent) -> None:
         """Main event dispatch — entry point for all Slack events."""
 
-        # ── 0. Dedup guard (re-delivered events on SDK reconnect) ─────
+        # ── 0. Stale event guard (messages queued while bot was offline) ─
+        try:
+            event_wall_time = float(event.ts)
+            cutoff = self._startup_wall_time - self._stale_event_grace_s
+            if event_wall_time < cutoff:
+                logger.info(
+                    "app.stale_event_dropped",
+                    ts=event.ts,
+                    channel_id=event.channel_id,
+                    event_type=event.event_type.value,
+                    age_s=round(self._startup_wall_time - event_wall_time),
+                )
+                return
+        except (ValueError, TypeError):
+            pass  # unparseable ts — let it through
+
+        # ── 0b. Dedup guard (re-delivered events on SDK reconnect) ────
         if self._is_duplicate_event(event):
             return
 
