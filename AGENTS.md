@@ -162,6 +162,31 @@ Examples:
 
 ---
 
+## Release Procedure
+
+Releases are managed manually. No CI/CD automation.
+
+```bash
+# 1. Update CHANGELOG.md
+#    - Move all items under [Unreleased] to a new [x.y.z] - YYYY-MM-DD section
+#    - Add a link at the bottom: [x.y.z]: https://github.com/magifd2/sai/releases/tag/vx.y.z
+#    - Leave [Unreleased] section empty (but present) for future entries
+
+# 2. Commit
+git add CHANGELOG.md
+git commit -m "chore: prepare vX.Y.Z release"
+
+# 3. Tag and push
+git tag vX.Y.Z
+git push origin main
+git push origin vX.Y.Z
+
+# 4. Create GitHub Release
+gh release create vX.Y.Z --title "vX.Y.Z" --notes "..."
+```
+
+---
+
 ## Files Never to Commit
 
 - `.env` (credentials)
