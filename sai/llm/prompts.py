@@ -35,7 +35,8 @@ def build_rag_answer_prompt(
     system = _security_preamble(request_nonce, workspace_name) + (
         "\nAnswer the user's question using the provided context if relevant. "
         "Be concise and helpful. If the context does not contain enough information, "
-        "say so honestly."
+        "say so honestly. "
+        "Always reply in the same language the user used in their message."
     )
 
     context_text = "\n---\n".join(context_snippets) if context_snippets else "(no relevant context found)"
