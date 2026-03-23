@@ -94,7 +94,7 @@ class Application:
         Slack Socket Mode may re-deliver events on reconnection. We track
         recent (ts, channel_id) pairs and discard any repeat within the TTL.
         """
-        key = f"{event.ts}#{event.channel_id}"
+        key = f"{event.ts}#{event.channel_id}#{event.event_type.value}"
         now = time.monotonic()
 
         if key in self._seen_events:
