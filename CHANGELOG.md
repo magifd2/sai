@@ -8,8 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] - 2026-03-24
+
 ### Added
 - Memory monitoring CLI: `sai memory stats`, `sai memory list`, `sai memory show` — inspect memory database contents while SAI is stopped; DB opened in read-only mode
+- `sai memory list --limit 0` for unlimited results (default: 20)
 
 ---
 
