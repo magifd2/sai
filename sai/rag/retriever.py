@@ -47,6 +47,12 @@ class Retriever:
 
         results: list[MemoryRecord] = []
         for doc in docs:
+            logger.debug(
+                "retriever.candidate",
+                score=round(doc.score, 4),
+                passed=doc.score >= self._threshold,
+                record_id=doc.record_id,
+            )
             if doc.score < self._threshold:
                 continue
             record = await self._memory.get_by_id(doc.record_id)
@@ -56,6 +62,7 @@ class Retriever:
         logger.debug(
             "retriever.retrieved",
             query_snippet=query[:50],
+            threshold=self._threshold,
             candidates=len(docs),
             passed_threshold=len(results),
         )

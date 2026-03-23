@@ -79,7 +79,7 @@ class MemoryConfig(BaseModel):
 class RagConfig(BaseModel):
     n_results_default: int = Field(default=5, description="Default number of RAG results to retrieve")
     similarity_threshold: float = Field(
-        default=0.7, description="Minimum similarity score for RAG results (0-1)"
+        default=0.5, description="Minimum similarity score for RAG results (0-1)"
     )
 
 

@@ -55,7 +55,7 @@ pin_reactions = ["pushpin", "star", "bookmark", "memo"]
 # -----------------------------------------------------------------------------
 [rag]
 n_results_default    = 5    # number of memory records retrieved per query
-similarity_threshold = 0.7  # minimum cosine similarity (0.0–1.0)
+similarity_threshold = 0.5  # minimum cosine similarity (0.0–1.0)
 
 # -----------------------------------------------------------------------------
 # Security
