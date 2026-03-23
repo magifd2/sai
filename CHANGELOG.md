@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.0] - 2026-03-24
+
+### Added
+- HyDE (Hypothetical Document Embeddings): before embedding a query, the LLM rewrites it into a hypothetical Slack message that would answer it, bridging the semantic gap between question-style queries and statement-style stored messages. Configurable via `rag.use_hyde` (default: `true`). Falls back to raw query on failure.
+
+### Fixed
+- RAG similarity threshold lowered from 0.7 to 0.5: small local embedding models return lower cosine similarity for question-vs-statement pairs, causing relevant records to be filtered out. 0.5 retains enough precision while allowing semantically related Q/A pairs to pass.
+- Added per-candidate score logging at DEBUG level to aid threshold tuning.
+
+---
+
 ## [0.2.0] - 2026-03-24
 
 ### Added
