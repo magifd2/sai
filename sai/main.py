@@ -283,7 +283,7 @@ def memory_stats(db_path: str) -> None:
               help="Filter by state")
 @click.option("--user", "user_id", default=None, help="Filter by user ID")
 @click.option("--channel", "channel_id", default=None, help="Filter by channel ID")
-@click.option("--limit", default=20, show_default=True, help="Max records to show")
+@click.option("--limit", default=20, show_default=True, help="Max records to show (0 = unlimited)")
 def memory_list(db_path: str, state_filter: Optional[str], user_id: Optional[str],
                 channel_id: Optional[str], limit: int) -> None:
     """List memory records (newest first)."""

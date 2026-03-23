@@ -279,7 +279,10 @@ class MemoryRepository(BaseRepository):
         channel_id: Optional[str] = None,
         limit: int = 20,
     ) -> list[MemoryRecord]:
-        """Return records matching optional filters, newest first."""
+        """Return records matching optional filters, newest first.
+
+        limit=0 means no limit (return all matching records).
+        """
         where_parts: list[str] = []
         params: list = []
         if state:
@@ -292,10 +295,12 @@ class MemoryRepository(BaseRepository):
             where_parts.append("channel_id = ?")
             params.append(channel_id)
         where = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
-        params.append(limit)
+        limit_clause = "" if limit == 0 else "LIMIT ?"
+        if limit != 0:
+            params.append(limit)
         rows = await self._run(
             self._execute,
-            f"{_SELECT} {where} ORDER BY created_at DESC LIMIT ?",
+            f"{_SELECT} {where} ORDER BY created_at DESC {limit_clause}",
             params,
         )
         return [_row_to_record(r) for r in rows]
