@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Dedup guard used `ts#channel_id` as key, causing `app_mention` events to be silently dropped: Slack delivers both a `message` event and an `app_mention` event for the same post with the same `ts`, so the `message` arrival was marking the ts as seen and the subsequent `app_mention` was discarded as a duplicate. Key changed to `ts#channel_id#event_type`.
+- Stale events queued while the bot was offline were processed on startup. Added a startup-time guard that drops events with `ts` older than `startup_time - 30 s`.
+- Rate-limit denials were completely silent for non-mention events; now logged at WARNING as `app.rate_limited`.
+- Added `app.event_received` INFO log entry after all guards pass, making it possible to distinguish "event not delivered by SDK" from "event dropped silently downstream".
+
 ---
 
 ## [0.3.0] - 2026-03-24
