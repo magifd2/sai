@@ -294,5 +294,5 @@ sai/
 
 | ドキュメント | 内容 |
 |------------|------|
-| [docs/slack-setup.md](docs/slack-setup.md) | Slackアプリセットアップ手順（ステップバイステップ） |
-| [docs/development-rules.md](docs/development-rules.md) | コーディング規約、セキュリティルール、Git規約 |
+| [docs/slack-setup.ja.md](docs/slack-setup.ja.md) / [en](docs/slack-setup.md) | Slackアプリセットアップ手順（ステップバイステップ） |
+| [docs/development-rules.ja.md](docs/development-rules.ja.md) / [en](docs/development-rules.md) | コーディング規約、セキュリティルール、Git規約 |

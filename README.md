@@ -259,5 +259,5 @@ sai/
 
 | Document | Description |
 |----------|-------------|
-| [docs/slack-setup.md](docs/slack-setup.md) | Step-by-step Slack app setup guide |
-| [docs/development-rules.md](docs/development-rules.md) | Coding standards, security rules, git conventions |
+| [docs/slack-setup.md](docs/slack-setup.md) / [ja](docs/slack-setup.ja.md) | Step-by-step Slack app setup guide |
+| [docs/development-rules.md](docs/development-rules.md) / [ja](docs/development-rules.ja.md) | Coding standards, security rules, git conventions |

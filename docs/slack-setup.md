@@ -1,94 +1,96 @@
-# Slack アプリセットアップガイド
+# Slack App Setup Guide
 
-SAIをSlackで動作させるためのステップバイステップ手順です。
+> 🇯🇵 日本語版: [slack-setup.ja.md](slack-setup.ja.md)
 
----
-
-## 前提条件
-
-- Slackワークスペースの管理者権限（またはアプリ追加権限）
-- [Slack API サイト](https://api.slack.com/apps) へのアクセス
+Step-by-step instructions for connecting SAI to your Slack workspace.
 
 ---
 
-## Step 1: Slack アプリを作成する
+## Prerequisites
 
-1. [https://api.slack.com/apps](https://api.slack.com/apps) を開く
-2. **「Create New App」** をクリック
-3. **「From scratch」** を選択
-4. アプリ名（例: `SAI`）とインストール先のワークスペースを選んで **「Create App」**
+- Admin rights in your Slack workspace (or permission to add apps)
+- Access to the [Slack API site](https://api.slack.com/apps)
 
 ---
 
-## Step 2: Socket Mode を有効にする
+## Step 1: Create a Slack App
 
-Socket Mode を使うと、パブリックなエンドポイント（サーバー公開）なしにリアルタイムイベントを受信できます。
-
-1. 左メニューの **「Socket Mode」** をクリック
-2. **「Enable Socket Mode」** をオンにする
-3. Token Name に `SAI_APP_TOKEN` と入力して **「Generate」**
-4. 表示される `xapp-1-...` のトークンをコピーして保存
-
-   > これが `SAI_SLACK_APP_TOKEN` になります
+1. Open [https://api.slack.com/apps](https://api.slack.com/apps)
+2. Click **"Create New App"**
+3. Select **"From scratch"**
+4. Enter an app name (e.g. `SAI`) and select the target workspace, then click **"Create App"**
 
 ---
 
-## Step 3: Bot Token Scopes を設定する
+## Step 2: Enable Socket Mode
 
-1. 左メニューの **「OAuth & Permissions」** をクリック
-2. **「Scopes」** セクションの **「Bot Token Scopes」** で以下を追加:
+Socket Mode lets SAI receive real-time events without exposing a public HTTP endpoint.
 
-   | Scope | 用途 |
-   |-------|------|
-   | `channels:history` | チャンネルのメッセージ履歴を読む |
-   | `channels:read` | チャンネル一覧を取得する |
-   | `chat:write` | メッセージを送信する |
-   | `groups:history` | プライベートチャンネルの履歴を読む |
-   | `groups:read` | プライベートチャンネル一覧を取得する |
-   | `im:history` | DM履歴を読む（任意） |
-   | `reactions:read` | リアクションイベントを受信する（ピン機能に必要） |
-   | `users:read` | ユーザー情報を取得する |
-   | `app_mentions:read` | @メンションを受信する |
+1. Click **"Socket Mode"** in the left menu
+2. Toggle **"Enable Socket Mode"** on
+3. Enter `SAI_APP_TOKEN` as the token name and click **"Generate"**
+4. Copy the `xapp-1-...` token and save it
+
+   > This becomes your `SAI_SLACK_APP_TOKEN`
 
 ---
 
-## Step 4: Event Subscriptions を設定する
+## Step 3: Configure Bot Token Scopes
 
-1. 左メニューの **「Event Subscriptions」** をクリック
-2. **「Enable Events」** をオンにする
-3. **「Subscribe to bot events」** に以下を追加:
+1. Click **"OAuth & Permissions"** in the left menu
+2. Under **"Scopes" → "Bot Token Scopes"**, add the following:
 
-   | Event | 用途 |
-   |-------|------|
-   | `message.channels` | パブリックチャンネルのメッセージを監視 |
-   | `message.groups` | プライベートチャンネルのメッセージを監視 |
-   | `app_mention` | @メンションを受信 |
-   | `reaction_added` | リアクション追加を受信（ピン機能に必要） |
-
-4. **「Save Changes」** をクリック
-
----
-
-## Step 5: アプリをワークスペースにインストールする
-
-1. 左メニューの **「OAuth & Permissions」** をクリック
-2. **「Install to Workspace」** をクリック
-3. 権限を確認して **「許可する」**
-4. **「Bot User OAuth Token」**（`xoxb-...`）をコピーして保存
-
-   > これが `SAI_SLACK_BOT_TOKEN` になります
+   | Scope | Purpose |
+   |-------|---------|
+   | `channels:history` | Read message history in public channels |
+   | `channels:read` | List public channels |
+   | `chat:write` | Post messages |
+   | `groups:history` | Read message history in private channels |
+   | `groups:read` | List private channels |
+   | `im:history` | Read DM history (optional) |
+   | `reactions:read` | Receive reaction events (required for pinning) |
+   | `users:read` | Fetch user information |
+   | `app_mentions:read` | Receive @mention events |
 
 ---
 
-## Step 6: SAI の環境変数を設定する
+## Step 4: Configure Event Subscriptions
 
-プロジェクトルートで `.env` ファイルを作成:
+1. Click **"Event Subscriptions"** in the left menu
+2. Toggle **"Enable Events"** on
+3. Under **"Subscribe to bot events"**, add:
+
+   | Event | Purpose |
+   |-------|---------|
+   | `message.channels` | Monitor public channel messages |
+   | `message.groups` | Monitor private channel messages |
+   | `app_mention` | Receive @mentions |
+   | `reaction_added` | Receive reaction events (required for pinning) |
+
+4. Click **"Save Changes"**
+
+---
+
+## Step 5: Install the App to Your Workspace
+
+1. Click **"OAuth & Permissions"** in the left menu
+2. Click **"Install to Workspace"**
+3. Review the permissions and click **"Allow"**
+4. Copy the **"Bot User OAuth Token"** (`xoxb-...`) and save it
+
+   > This becomes your `SAI_SLACK_BOT_TOKEN`
+
+---
+
+## Step 6: Configure SAI Environment Variables
+
+Create a `.env` file in the project root:
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` を編集して取得したトークンを設定:
+Edit `.env` with the tokens you collected:
 
 ```env
 SAI_SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx
@@ -97,67 +99,67 @@ SAI_SLACK_APP_TOKEN=xapp-1-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-## Step 7: SAI をチャンネルに招待する
+## Step 7: Invite SAI to Channels
 
-Slack上でSAIを動作させたいチャンネルで:
+In Slack, invite SAI to every channel it should monitor:
 
 ```
 /invite @SAI
 ```
 
-または、チャンネルの「メンバーを追加」からSAIを追加してください。
+Or use the channel's **"Add members"** option.
 
 ---
 
-## Step 8: SAI を起動する
+## Step 8: Start SAI
 
 ```bash
-# データベースの初期化（初回のみ）
+# Initialize the database (first time only)
 uv run sai init-db
 
-# LLMへの接続確認
+# Verify LLM connectivity
 uv run sai check
 
-# 起動
+# Start the bot
 uv run sai start
 ```
 
-起動ログに `sai.ready` が表示されれば成功です。
+The bot is ready when `sai.ready` appears in the log.
 
 ---
 
-## Step 9: 動作確認
+## Step 9: Verify It Works
 
-1. SAIを招待したチャンネルで `@SAI こんにちは` とメッセージを送信
-2. SAIから返答があれば正常に動作しています
+1. In a channel SAI has joined, send `@SAI hello`
+2. SAI should reply — if it does, setup is complete
 
-### メモリのピン留めを試す
+### Try the pinning feature
 
-任意のメッセージに 📌（`:pushpin:`）のリアクションを付けてみてください。
-そのメッセージは永続記憶に保存され、ライフサイクル管理の対象外になります。
-
----
-
-## トラブルシューティング
-
-### `invalid_auth` エラー
-→ `SAI_SLACK_BOT_TOKEN` が正しくコピーされているか確認
-
-### イベントが届かない
-→ Socket Mode が有効になっているか確認
-→ `SAI_SLACK_APP_TOKEN` (`xapp-...`) が正しく設定されているか確認
-
-### @メンションに返答しない
-→ `app_mention` イベントが Subscribe to bot events に追加されているか確認
-→ SAIがそのチャンネルに招待されているか確認
-
-### リアクションが無視される
-→ `reaction_added` イベントが Subscribe to bot events に追加されているか確認
-→ `SAI_MEMORY_PIN_REACTIONS` の設定でリアクション名が正しいか確認（デフォルト: `pushpin,star,bookmark,memo`）
+Add a 📌 (`:pushpin:`) reaction to any message. That message will be stored in permanent memory and will never be aged out or archived.
 
 ---
 
-## 必要なSlackプラン
+## Troubleshooting
 
-Socket Modeは**全プラン**で利用可能です（フリープランを含む）。
-ただし、プライベートチャンネルの履歴読み取りにはワークスペースの設定が必要な場合があります。
+### `invalid_auth` error
+→ Check that `SAI_SLACK_BOT_TOKEN` was copied correctly
+
+### Events not arriving
+→ Confirm Socket Mode is enabled
+→ Confirm `SAI_SLACK_APP_TOKEN` (`xapp-...`) is set correctly
+
+### @mentions not answered
+→ Confirm `app_mention` is in "Subscribe to bot events"
+→ Confirm SAI has been invited to the channel
+
+### Reactions ignored
+→ Confirm `reaction_added` is in "Subscribe to bot events"
+→ Check that the reaction name matches `SAI_MEMORY_PIN_REACTIONS`
+  (defaults: `pushpin`, `star`, `bookmark`, `memo`)
+
+---
+
+## Slack Plan Requirements
+
+Socket Mode is available on **all plans** including the free tier.
+Private channel history access may require additional workspace-level settings depending on your plan.

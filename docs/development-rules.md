@@ -1,145 +1,151 @@
-# SAI 開発ルール
+# SAI Development Rules
 
-このドキュメントはSAIプロジェクトにおける開発規約・ルールを定義します。
-機能追加・変更時は必ずこのドキュメントも更新してください。
+> 🇯🇵 日本語版: [development-rules.ja.md](development-rules.ja.md)
 
----
-
-## 1. 言語・環境
-
-| 項目 | 規約 |
-|------|------|
-| 言語 | Python 3.12+ |
-| 仮想環境 | uv（`uv run` 経由で実行） |
-| パッケージ管理 | `pyproject.toml` + `uv.lock` |
-| 設定 | `sai.toml` + 環境変数（`SAI_` プレフィックス） |
+This document defines the coding standards, conventions, and rules for the SAI project.
+**Update this document whenever a feature is added or changed.**
 
 ---
 
-## 2. コーディング規約
+## 1. Language & Environment
 
-### 型アノテーション
-- 全パブリック関数・メソッドに型アノテーションを付ける
-- データモデルはすべて Pydantic v2 の `BaseModel` を使う
-- `dict` をモジュール境界をまたいで渡さない
-
-### 非同期
-- イベントループをブロックしない。DB・ファイルIO は `asyncio.to_thread()` 経由（`sai/db` の `BaseRepository` が提供）
-- 外部HTTPは `httpx.AsyncClient` を使う
-- 呼び出し側は async/await のみ使う（DB内部の同期処理を意識しない）
-
-### データベースアクセス
-- DuckDB への直接アクセスは `sai/db/` モジュールのみ許可
-- 生SQLは `sai/db/repositories/` 内のみに書く
-- SQLは必ずパラメータバインド（`?`）を使う。文字列フォーマットでのSQL構築禁止
-- `connection_manager` の直接呼び出しは `BaseRepository` のみ
-
-### プロンプト・LLM
-- ユーザー入力を直接 f-string でプロンプトに埋め込まない
-- プロンプトテンプレートは `sai/llm/prompts.py` のみに記述
-- ユーザー入力は必ず `Sanitizer` → `NonceManager.wrap()` を通してからプロンプトへ
-
-### シェル実行
-- `subprocess.run()` は `shell=False`、引数リスト形式のみ
-- `eval()`, `exec()`, `__import__()` 使用禁止
-- コマンド実行は `sai/commands/executor.py` 経由のみ（事前登録済みスクリプトのみ実行可能）
+| Item | Convention |
+|------|-----------|
+| Language | Python 3.12+ |
+| Virtual environment | uv (run via `uv run`) |
+| Package management | `pyproject.toml` + `uv.lock` |
+| Configuration | `sai.toml` + environment variables (`SAI_` prefix) |
 
 ---
 
-## 3. セキュリティ規約
+## 2. Coding Conventions
 
-処理パイプラインの順序は厳守すること：
+### Type Annotations
+- All public functions and methods must have type annotations
+- All data models must use Pydantic v2 `BaseModel`
+- Never pass raw `dict` across module boundaries — use typed models
+
+### Async
+- Never block the event loop — DB and file I/O must go through `asyncio.to_thread()` (provided by `sai/db/BaseRepository`)
+- Use `httpx.AsyncClient` for all outbound HTTP
+- Callers use only `async/await` — internal sync details of the DB layer are invisible to them
+
+### Database Access
+- Direct DuckDB access is permitted only inside `sai/db/`
+- Raw SQL belongs only in `sai/db/repositories/`
+- Always use parameterized queries (`?`). String-format SQL construction is forbidden
+- Only `BaseRepository` may call `connection_manager` directly
+
+### Prompts & LLM
+- Never interpolate user input directly into a prompt f-string
+- All prompt templates live exclusively in `sai/llm/prompts.py`
+- User input must pass through `Sanitizer` → `NonceManager.wrap()` before reaching any prompt
+
+### Shell Execution
+- `subprocess` calls must use `shell=False` with an argument list
+- `eval()`, `exec()`, and `__import__()` are forbidden
+- Command execution is allowed only via `sai/commands/executor.py`, which runs only pre-registered scripts
+- Parameters are passed to scripts via **stdin JSON** — never as CLI arguments
+
+---
+
+## 3. Security Rules
+
+The event processing pipeline order is mandatory — never reorder:
 
 ```
-イベント受信
-  → ACLチェック（最初に必ず実行）
-  → レートリミットチェック
-  → 入力サニタイズ（Sanitizer）
-  → Nonce生成・XMLカプセル化
-  → LLM呼び出し
-  → レスポンス後処理（think/reasoningタグ除去）
-  → Slackへ返信
+Event received
+  → ACL check          ← always first
+  → Rate limit check   ← always second
+  → Input sanitize     (Sanitizer)
+  → Nonce generate + XML encapsulate
+  → LLM call
+  → Response post-process  (strip think/reasoning tags)
+  → Reply to Slack
 ```
 
-- **ACLチェックより前に処理を行わない**
-- **レートリミットチェックはACL通過後に必ず実施**
-- Nonce は `secrets.token_hex(16)` で生成（推測不可能であること）
-- LLM出力をSlackに返す際は長さ制限・コードブロック内容に注意
-- ログに秘密情報（トークン・APIキー）を出力しない
+- **No processing before ACL check**
+- **Rate limit check must follow immediately after ACL pass**
+- Nonces must be generated with `secrets.token_hex(16)` (unpredictable)
+- LLM output posted to Slack must be length-truncated; be careful with code block content
+- Never log secrets (tokens, API keys)
 
 ---
 
-## 4. テスト規約
+## 4. Testing Rules
 
-- `sai/` 配下の各モジュールに対応するテストファイルを `tests/unit/` に作成する
-  - 例：`sai/security/acl.py` → `tests/unit/test_acl.py`
-- LLM呼び出しはすべてモック（`respx` または `unittest.mock`）
-- DuckDB はテスト用インメモリDB（`:memory:`）を使う（`tests/conftest.py` で提供）
-- セキュリティ系テストには必ず攻撃的入力（インジェクション試行・超長文字列・Unicode攻撃）を含める
-- `uv run pytest` が全テストパスしてからコミット
+- Every module under `sai/` must have a corresponding test file in `tests/unit/`
+  - e.g. `sai/security/acl.py` → `tests/unit/test_acl.py`
+- All LLM calls in tests must be mocked (`respx` or `unittest.mock`)
+- DuckDB tests use an in-memory database (`:memory:`) provided by `tests/conftest.py`
+- Security tests must include adversarial inputs: injection attempts, oversized strings, Unicode attacks
+- All tests must pass with `uv run pytest` before committing
 
-### テスト実行
+### Running Tests
+
 ```bash
-uv run pytest                        # 全テスト
-uv run pytest tests/unit/            # ユニットテストのみ
-uv run pytest tests/integration/     # 統合テストのみ
-uv run pytest --cov=sai --cov-report=term-missing  # カバレッジ
+uv run pytest                                        # all tests
+uv run pytest tests/unit/                           # unit tests only
+uv run pytest tests/integration/                    # integration tests only
+uv run pytest --cov=sai --cov-report=term-missing   # with coverage
 ```
 
 ---
 
-## 5. Git・チェンジログ規約
+## 5. Git & Changelog Rules
 
-### コミットメッセージ
+### Commit Messages
+
 ```
-[PhaseN] component: 変更内容の簡潔な説明
+[PhaseN] component: concise description of the change
 
-例:
+Examples:
 [Phase0] config: add SAI_ prefix to all env vars
 [Phase2] security/acl: add blacklist persistence
 [Phase4] memory: implement hot→warm lifecycle transition
 ```
 
-### ブランチ戦略
-- `main` ブランチは常に動作するコードを維持
-- 機能開発は `feature/<name>` ブランチで行う
-- バグ修正は `fix/<name>` ブランチで行う
+### Branch Strategy
+- `main` must always contain working code
+- Feature development: `feature/<name>` branch
+- Bug fixes: `fix/<name>` branch
 
 ### CHANGELOG.md
-[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) 形式を使用。
+Use [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
-リリース時の記載項目：
-- `Added` — 新機能
-- `Changed` — 既存機能の変更
-- `Fixed` — バグ修正
-- `Security` — セキュリティ関連の変更
-- `Deprecated` — 非推奨になった機能
-- `Removed` — 削除された機能
-
----
-
-## 6. ドキュメント規約
-
-| ドキュメント | 場所 | 更新タイミング |
-|-------------|------|---------------|
-| 機能説明 | `docs/features/` | 機能追加・変更時 |
-| アーキテクチャ | `docs/architecture.md` | 構造変更時 |
-| データ定義 | `docs/data-model.md` | スキーマ変更時 |
-| API仕様 | `docs/api.md` | インターフェース変更時 |
-| 開発ルール | `docs/development-rules.md` | ルール変更時 |
-| チェンジログ | `CHANGELOG.md` | リリース時 |
-
-- **機能追加・変更があれば必ずドキュメントを更新する**
-- コードのコメントは自明でないロジックにのみ付ける
-- 公開関数には簡潔なdocstringを付ける（型は型アノテーションで表現）
+Sections per release:
+- `Added` — new features
+- `Changed` — changes to existing features
+- `Fixed` — bug fixes
+- `Security` — security-related changes
+- `Deprecated` — features that will be removed
+- `Removed` — removed features
 
 ---
 
-## 7. 禁止事項
+## 6. Documentation Rules
 
-- `.env` ファイルをコミットに含めない（`.env.example` のみ許可）
-- `data/` ディレクトリの `*.db`、`chroma/` をコミットに含めない
-- `--no-verify` でコミットフックをスキップしない
-- ハードコードされたシークレット（トークン・パスワード）
-- `shell=True` でのsubprocess実行
-- DB層以外からの `connection_manager` 直接アクセス
+| Document | Location | When to update |
+|----------|----------|----------------|
+| Feature descriptions | `docs/features/` | On feature add/change |
+| Architecture | `docs/architecture.md` | On structural change |
+| Data model | `docs/data-model.md` | On schema change |
+| API spec | `docs/api.md` | On interface change |
+| Development rules | `docs/development-rules.md` | On rule change |
+| Changelog | `CHANGELOG.md` | On release |
+
+- **Always update documentation when adding or changing a feature**
+- All documents are provided in both English (`*.md`) and Japanese (`*.ja.md`)
+- Code comments only where logic is non-obvious
+- Public functions get a concise docstring; types are expressed via annotations
+
+---
+
+## 7. Prohibited
+
+- Committing `.env` files (only `.env.example` is allowed)
+- Committing database files (`data/*.db`) or vector store data (`data/chroma/`)
+- Skipping commit hooks with `--no-verify`
+- Hardcoded secrets (tokens, passwords) anywhere in source
+- `shell=True` in any `subprocess` call
+- Direct access to `connection_manager` outside the `sai/db/` layer
