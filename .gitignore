@@ -31,3 +31,4 @@ data/sandbox/
 *.swp
 *.swo
 .DS_Store
+sai.toml
