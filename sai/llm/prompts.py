@@ -69,6 +69,7 @@ def build_rag_answer_prompt(
     current_datetime: Optional[str] = None,
     available_commands: Optional[list[str]] = None,
     response_language: str = "",
+    requester: Optional[str] = None,
 ) -> list[ChatMessage]:
     """Prompt for answering a user question using RAG-retrieved memory context."""
     if available_commands:
@@ -91,20 +92,25 @@ def build_rag_answer_prompt(
 
     system = _security_preamble(request_nonce, workspace_name, current_datetime) + (
         capabilities
-        + "Answer the user's question using ONLY the information in the provided context below. "
-        "If the context does not contain the answer, say so honestly — do NOT invent, assume, "
-        "or extrapolate facts that are not explicitly stated in the context. "
-        "In particular, never fabricate past conversations, events, or user requests. "
-        "Format your response using Markdown: use ## for section headings, "
-        "**text** for bold, bullet lists with -, and ``` for code blocks. "
+        + "When answering:\n"
+        "- Greetings, chitchat, or simple conversation: respond naturally and friendly.\n"
+        "- Questions about your own capabilities or how you work: answer from the information above.\n"
+        "- Questions about past conversations, events, or user-specific history: answer using ONLY "
+        "the provided memory context below. Do NOT invent, assume, or extrapolate facts about "
+        "past conversations that are not explicitly stated in the context. "
+        "If the context does not contain the answer, say so honestly.\n"
+        "Use ## for section headings, *text* for bold, `code` for inline code, "
+        "``` for code blocks, • for bullet lists, and | tables | for tabular data. "
         "Be concise and helpful."
     )
 
     context_text = "\n---\n".join(context_snippets) if context_snippets else "(no relevant context found)"
     wrapped_context = nonce_mod.wrap_context(context_text, request_nonce)
+    requester_line = f"Requester: {requester}\n" if requester else ""
     wrapped_user = nonce_mod.wrap(user_text, request_nonce, role="message")
 
     user_content = (
+        f"{requester_line}"
         f"Context from memory:\n{wrapped_context}\n\n"
         f"User question:\n{wrapped_user}"
         f"{_reply_lang_instruction(user_text, response_language)}"

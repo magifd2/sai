@@ -29,6 +29,13 @@ def setup_logging(level: str = "INFO") -> None:
         level=log_level,
     )
 
+    # Suppress noisy plain-text output from third-party libraries.
+    # httpx logs every HTTP request at INFO level in non-JSON format;
+    # raise it to WARNING in non-DEBUG mode so only errors surface.
+    if level.upper() != "DEBUG":
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)

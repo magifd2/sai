@@ -1,0 +1,92 @@
+# =============================================================================
+# sai.toml — SAI configuration template
+#
+# Copy this file to sai.toml and fill in the required values.
+# Secrets (bot_token, app_token, api_key) should be kept in .env instead.
+# Environment variables with SAI_ prefix override values in this file.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Slack  (required)
+# -----------------------------------------------------------------------------
+[slack]
+# bot_token and app_token are better placed in .env:
+#   SAI_SLACK_BOT_TOKEN=xoxb-...
+#   SAI_SLACK_APP_TOKEN=xapp-...
+workspace_name  = "My Workspace"
+
+# Language for all bot responses.
+# Leave empty ("") to auto-detect from each user message.
+# Examples: "Japanese", "English", "Korean"
+response_language = "Japanese"
+
+# -----------------------------------------------------------------------------
+# LLM  (LM Studio / any OpenAI-compatible endpoint)
+# -----------------------------------------------------------------------------
+[llm]
+base_url    = "http://localhost:1234/v1"
+api_key     = "lm-studio"          # dummy key accepted by LM Studio
+model       = "openai/gpt-oss-20b"
+embed_model = "text-embedding-nomic-embed-text-v1.5"
+embed_dim   = 768                  # must match embed_model output dimensions
+
+max_tokens             = 4096
+temperature            = 0.2
+timeout_chat           = 120       # seconds
+timeout_embed          = 30        # seconds
+context_window         = 120000    # tokens (informational, not enforced)
+max_concurrent_requests = 4
+
+# -----------------------------------------------------------------------------
+# Memory lifecycle
+# -----------------------------------------------------------------------------
+[memory]
+hot_max_age_hours            = 24   # HOT  → WARM  after N hours
+warm_max_age_days            = 7    # WARM → COLD  after N days
+aging_check_interval_minutes = 30   # how often the aging job runs
+archive_check_interval_hours = 6    # how often the archive job runs
+max_hot_records_per_user     = 500  # hard cap before forced aging
+
+# Slack reaction names that permanently pin a message (never aged/archived)
+pin_reactions = ["pushpin", "star", "bookmark", "memo"]
+
+# -----------------------------------------------------------------------------
+# RAG (retrieval-augmented generation)
+# -----------------------------------------------------------------------------
+[rag]
+n_results_default    = 5    # number of memory records retrieved per query
+similarity_threshold = 0.7  # minimum cosine similarity (0.0–1.0)
+
+# -----------------------------------------------------------------------------
+# Security
+# -----------------------------------------------------------------------------
+[security]
+whitelist_mode     = false  # true = only whitelisted users can interact
+rate_limit_per_minute = 10
+rate_limit_per_hour   = 50
+max_input_chars       = 2000
+injection_block_on_detect = true
+
+# Pre-populate ACL at startup (Slack user IDs)
+default_whitelist = []
+default_blacklist = []
+
+# -----------------------------------------------------------------------------
+# Commands
+# -----------------------------------------------------------------------------
+[commands]
+scripts_dir        = "./scripts"       # directory containing commands.json + scripts
+sandbox_dir        = "./data/sandbox"  # working directory for script execution
+max_runtime_seconds = 30
+max_output_chars   = 4000
+
+# -----------------------------------------------------------------------------
+# Database
+# -----------------------------------------------------------------------------
+[database]
+path = "./data/sai.db"
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+log_level = "INFO"   # DEBUG | INFO | WARNING | ERROR

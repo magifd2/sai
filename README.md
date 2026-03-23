@@ -118,6 +118,12 @@ This means SAI has good recall for recent events and useful summaries for older 
 
 ---
 
+### 5. Thread continuation
+
+Reply to any thread that SAI has already participated in — without needing to @mention SAI again — and the conversation continues naturally. SAI detects that the parent message is in memory and treats the reply as a mention automatically.
+
+---
+
 ### What SAI Does NOT Do
 
 - SAI does **not** proactively send messages — it only replies when @mentioned
@@ -145,13 +151,18 @@ uv sync
 cp .env.example .env
 # Edit .env with SAI_SLACK_BOT_TOKEN and SAI_SLACK_APP_TOKEN
 
-# 3. Initialize the database
+# 3. (Optional) Copy and customize the full config
+cp sai.toml.example sai.toml
+# Edit sai.toml — set workspace_name, response_language, model names, etc.
+# sai.toml is read from the current directory where you run `uv run sai start`
+
+# 4. Initialize the database
 uv run sai init-db
 
-# 4. Verify LLM connectivity
+# 5. Verify LLM connectivity
 uv run sai check
 
-# 5. Start the bot
+# 6. Start the bot
 uv run sai start
 ```
 
@@ -159,13 +170,13 @@ uv run sai start
 
 ## Configuration
 
-Settings are loaded from `sai.toml` (optional) and `SAI_*` environment variables.
-Environment variables override the config file.
+Settings are loaded from `sai.toml` (read from the current directory by default, override with `--config`) and `SAI_*` environment variables. Environment variables override the config file.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SAI_SLACK_BOT_TOKEN` | *(required)* | Slack bot token (`xoxb-...`) |
 | `SAI_SLACK_APP_TOKEN` | *(required)* | Socket Mode app token (`xapp-...`) |
+| `SAI_SLACK_RESPONSE_LANGUAGE` | *(auto-detect)* | Language for bot replies (e.g. `Japanese`, `English`) |
 | `SAI_LLM_BASE_URL` | `http://localhost:1234/v1` | LM Studio endpoint |
 | `SAI_LLM_API_KEY` | `lm-studio` | API key |
 | `SAI_LLM_MODEL` | `openai/gpt-oss-20b` | Chat model |
@@ -174,7 +185,8 @@ Environment variables override the config file.
 | `SAI_MEMORY_PIN_REACTIONS` | `pushpin,star,bookmark,memo` | Reactions that pin memory |
 | `SAI_LOG_LEVEL` | `INFO` | Log level |
 
-See [`.env.example`](.env.example) for a complete list.
+For all available settings with descriptions and defaults, see [`sai.toml.example`](sai.toml.example).
+Secrets (tokens, API keys) can be placed in `.env` — see [`.env.example`](.env.example).
 
 ---
 

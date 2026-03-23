@@ -31,7 +31,7 @@ from .security.ddos import RateLimiter
 from .slack.cache import CacheManager
 from .slack.client import SlackClient
 from .slack.events import SlackEvent, SlackEventType
-from .slack.markdown import md_to_slack_blocks
+from .slack.markdown import md_to_slack_blocks, split_blocks_for_slack
 from .utils.ids import new_id
 from .utils.logging import get_logger
 from .utils.time import utcnow
@@ -233,11 +233,20 @@ class Application:
             stderr_snippet=result.stderr[:500],
         )
 
-        await self._slack.post_message(
+        resp_data = await self._slack.post_message(
             channel=event.channel_id,
             text=result.format_for_slack(),
             thread_ts=event.thread_ts or event.ts,
         )
+        bot_ts = resp_data.get("ts") if resp_data else None
+        if bot_ts:
+            channel = await self._cache.get_channel(event.channel_id)
+            await self._store_bot_response(
+                text=result.format_for_slack(),
+                channel_id=event.channel_id,
+                ts=bot_ts,
+                channel_name=channel.channel_name if channel else None,
+            )
 
     async def _handle_rag_answer(
         self,
@@ -247,11 +256,21 @@ class Application:
     ) -> None:
         # Retrieve relevant memories
         context_records = await self._retriever.retrieve(clean_text)
-        context_snippets = [r.content for r in context_records]
+        # Include speaker identity so the LLM knows who said what
+        context_snippets = [
+            f"[{r.user_id} ({r.user_name})]: {r.content}"
+            for r in context_records
+        ]
 
         request_nonce = nonce_mod.generate()
         if current_datetime is None:
             current_datetime = utcnow().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+
+        # Resolve requester display info
+        requester_user = await self._cache.get_user(event.user_id)
+        requester_name = requester_user.user_name if requester_user else event.user_id
+        requester = f"{event.user_id} ({requester_name})"
+
         messages = prompts.build_rag_answer_prompt(
             user_text=clean_text,
             context_snippets=context_snippets,
@@ -260,6 +279,7 @@ class Application:
             current_datetime=current_datetime,
             available_commands=self._cmd_registry.menu or None,
             response_language=self._response_language,
+            requester=requester,
         )
 
         try:
@@ -274,13 +294,76 @@ class Application:
             return
 
         blocks = md_to_slack_blocks(answer)
-        logger.debug("app.rag_blocks", block_count=len(blocks))
-        await self._slack.post_message(
-            channel=event.channel_id,
-            text=answer,          # fallback plain text for notifications
-            blocks=blocks or None,
-            thread_ts=event.thread_ts or event.ts,
+        partitions = split_blocks_for_slack(blocks)
+        logger.debug("app.rag_blocks", block_count=len(blocks), partitions=len(partitions))
+
+        if not partitions:
+            resp_data = await self._slack.post_message(
+                channel=event.channel_id,
+                text=answer,
+                thread_ts=event.thread_ts or event.ts,
+            )
+            if resp_data and resp_data.get("ts"):
+                channel = await self._cache.get_channel(event.channel_id)
+                await self._store_bot_response(
+                    text=answer,
+                    channel_id=event.channel_id,
+                    ts=resp_data["ts"],
+                    channel_name=channel.channel_name if channel else None,
+                )
+            return
+
+        # First partition carries the plain-text fallback for notifications.
+        # Subsequent partitions (continuation posts in the same thread) use a
+        # blank fallback so only the blocks are visible.
+        first_ts: str | None = None
+        for idx, partition in enumerate(partitions):
+            resp_data = await self._slack.post_message(
+                channel=event.channel_id,
+                text=answer if idx == 0 else "\u200b",  # zero-width space for continuations
+                blocks=partition,
+                thread_ts=event.thread_ts or event.ts,
+            )
+            if idx == 0 and resp_data:
+                first_ts = resp_data.get("ts")
+
+        if first_ts:
+            channel = await self._cache.get_channel(event.channel_id)
+            await self._store_bot_response(
+                text=answer,
+                channel_id=event.channel_id,
+                ts=first_ts,
+                channel_name=channel.channel_name if channel else None,
+            )
+
+    # ------------------------------------------------------------------
+    # Store bot response in HOT memory so it appears in RAG context
+    # ------------------------------------------------------------------
+
+    async def _store_bot_response(
+        self,
+        text: str,
+        channel_id: str,
+        ts: str,
+        channel_name: str | None = None,
+    ) -> None:
+        """Store a bot-generated response in HOT memory and index it."""
+        record = MemoryRecord(
+            id=new_id(),
+            user_id="SAI",
+            user_name="SAI",
+            channel_id=channel_id,
+            channel_name=channel_name,
+            ts=ts,
+            created_at=utcnow(),
+            content=text,
+            state=MemoryState.HOT,
         )
+        await self._memory.save(record)
+        try:
+            await self._retriever.index(record)
+        except Exception as exc:
+            logger.warning("app.bot_response_index_failed", error=str(exc))
 
     # ------------------------------------------------------------------
     # Reaction: pin memory if reaction is in pin_reactions list

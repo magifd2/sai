@@ -71,9 +71,25 @@ class LLMClient:
             "temperature": temperature if temperature is not None else self._temperature,
         }
 
+        logger.info(
+            "llm.chat.request",
+            model=self._model,
+            messages=len(messages),
+            max_tokens=payload["max_tokens"],
+            temperature=payload["temperature"],
+        )
         async with self._semaphore:
             raw = await self._post_with_retry("/chat/completions", payload)
-        text = raw["choices"][0]["message"]["content"]
+        choices = raw.get("choices") or []
+        if not choices:
+            raise RuntimeError(f"LLM returned no choices: {raw}")
+        text = choices[0].get("message", {}).get("content") or ""
+        usage = raw.get("usage", {})
+        logger.info(
+            "llm.chat.response",
+            prompt_tokens=usage.get("prompt_tokens"),
+            completion_tokens=usage.get("completion_tokens"),
+        )
         return clean_response(text, nonce=nonce)
 
     async def embed(self, text: str) -> list[float]:
@@ -82,6 +98,7 @@ class LLMClient:
             "model": self._embed_model,
             "input": text,
         }
+        logger.debug("llm.embed.request", model=self._embed_model, input_len=len(text))
         async with self._semaphore:
             raw = await self._post_with_retry(
             "/embeddings",

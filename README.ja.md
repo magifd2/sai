@@ -156,6 +156,12 @@ PINNED               リアクションによる永続化 — 永遠に記憶
 
 ---
 
+### 5. スレッド継続
+
+SAIがすでに参加しているスレッドへの返信は、改めて @メンションしなくても会話が続きます。親メッセージがメモリに存在することを検出して、自動的にメンションとして処理します。
+
+---
+
 ### SAI にできないこと
 
 - 自分からメッセージを送ることはしません（@メンションされたときだけ返答します）
@@ -183,13 +189,18 @@ uv sync
 cp .env.example .env
 # .env に SAI_SLACK_BOT_TOKEN と SAI_SLACK_APP_TOKEN を記入
 
-# 3. データベースの初期化
+# 3. （任意）設定ファイルのカスタマイズ
+cp sai.toml.example sai.toml
+# sai.toml を編集 — workspace_name、response_language、モデル名などを設定
+# sai.toml は `uv run sai start` を実行したカレントディレクトリから読み込まれます
+
+# 4. データベースの初期化
 uv run sai init-db
 
-# 4. LLMへの接続確認
+# 5. LLMへの接続確認
 uv run sai check
 
-# 5. 起動
+# 6. 起動
 uv run sai start
 ```
 
@@ -197,12 +208,13 @@ uv run sai start
 
 ## 設定
 
-設定は `sai.toml`（任意）と `SAI_*` 環境変数から読み込まれます。環境変数が設定ファイルより優先されます。
+設定は `sai.toml`（デフォルトはカレントディレクトリ、`--config` で変更可）と `SAI_*` 環境変数から読み込まれます。環境変数が設定ファイルより優先されます。
 
 | 環境変数 | デフォルト | 説明 |
 |---------|-----------|------|
 | `SAI_SLACK_BOT_TOKEN` | *(必須)* | Slack ボットトークン (`xoxb-...`) |
 | `SAI_SLACK_APP_TOKEN` | *(必須)* | Socket Mode アプリトークン (`xapp-...`) |
+| `SAI_SLACK_RESPONSE_LANGUAGE` | *(自動検出)* | ボットの返答言語（例: `Japanese`、`English`） |
 | `SAI_LLM_BASE_URL` | `http://localhost:1234/v1` | LM Studio エンドポイント |
 | `SAI_LLM_API_KEY` | `lm-studio` | APIキー |
 | `SAI_LLM_MODEL` | `openai/gpt-oss-20b` | チャットモデル |
@@ -211,7 +223,8 @@ uv run sai start
 | `SAI_MEMORY_PIN_REACTIONS` | `pushpin,star,bookmark,memo` | ピン留めに使うリアクション名 |
 | `SAI_LOG_LEVEL` | `INFO` | ログレベル |
 
-全設定項目は [`.env.example`](.env.example) を参照してください。
+全設定項目（説明・デフォルト値付き）は [`sai.toml.example`](sai.toml.example) を参照してください。
+シークレット（トークン、APIキー）は `.env` に記載できます — [`.env.example`](.env.example) を参照。
 
 ---
 

@@ -8,6 +8,15 @@ from ...memory.models import MemoryArchiveRecord, MemoryRecord, MemoryState
 from ...utils.time import from_unix, to_unix
 from .base import BaseRepository
 
+# Explicit column list keeps row unpacking independent of schema column order
+_COLS = (
+    "id, user_id, user_name, channel_id, channel_name, "
+    "ts, created_at, content, state, "
+    "is_summary, summary_of, pinned_at, pinned_by, pin_reaction, "
+    "nonce, embedding_id"
+)
+_SELECT = f"SELECT {_COLS} FROM memory_records"
+
 
 def _row_to_record(row: tuple) -> MemoryRecord:
     (
@@ -58,12 +67,8 @@ class MemoryRepository(BaseRepository):
 
     def _save_sync(self, record: MemoryRecord) -> None:
         self._execute(
-            """
-            INSERT OR REPLACE INTO memory_records
-                (id, user_id, user_name, channel_id, channel_name,
-                 ts, created_at, content, state,
-                 is_summary, summary_of, pinned_at, pinned_by, pin_reaction,
-                 nonce, embedding_id)
+            f"""
+            INSERT OR REPLACE INTO memory_records ({_COLS})
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             _record_to_params(record),
@@ -75,14 +80,7 @@ class MemoryRepository(BaseRepository):
 
     def _save_many_sync(self, records: list[MemoryRecord]) -> None:
         self._executemany(
-            """
-            INSERT OR REPLACE INTO memory_records
-                (id, user_id, user_name, channel_id, channel_name,
-                 ts, created_at, content, state,
-                 is_summary, summary_of, pinned_at, pinned_by, pin_reaction,
-                 nonce, embedding_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """,
+            f"INSERT OR REPLACE INTO memory_records ({_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [_record_to_params(r) for r in records],
         )
 
@@ -149,7 +147,7 @@ class MemoryRepository(BaseRepository):
         await self._run(self._archive_sync, record)
 
     def _archive_sync(self, record: MemoryRecord) -> None:
-        from ...utils.time import to_unix, utcnow
+        from ...utils.time import utcnow
         now = to_unix(utcnow())
         self._execute(
             """
@@ -174,7 +172,7 @@ class MemoryRepository(BaseRepository):
     async def get_by_id(self, record_id: str) -> Optional[MemoryRecord]:
         rows = await self._run(
             self._execute,
-            "SELECT * FROM memory_records WHERE id = ?",
+            f"{_SELECT} WHERE id = ?",
             [record_id],
         )
         return _row_to_record(rows[0]) if rows else None
@@ -183,7 +181,7 @@ class MemoryRepository(BaseRepository):
         """Find a record by Slack message timestamp and channel."""
         rows = await self._run(
             self._execute,
-            "SELECT * FROM memory_records WHERE ts = ? AND channel_id = ?",
+            f"{_SELECT} WHERE ts = ? AND channel_id = ?",
             [ts, channel_id],
         )
         return _row_to_record(rows[0]) if rows else None
@@ -195,7 +193,7 @@ class MemoryRepository(BaseRepository):
     ) -> list[MemoryRecord]:
         rows = await self._run(
             self._execute,
-            "SELECT * FROM memory_records WHERE state = ? ORDER BY created_at ASC LIMIT ?",
+            f"{_SELECT} WHERE state = ? ORDER BY created_at ASC LIMIT ?",
             [state.value, limit],
         )
         return [_row_to_record(r) for r in rows]
@@ -206,11 +204,12 @@ class MemoryRepository(BaseRepository):
         cutoff_unix: float,
         limit: int = 500,
     ) -> list[MemoryRecord]:
-        """Return records in a given state older than the cutoff timestamp."""
+        """Return records in a given state older than the cutoff timestamp.
+        PINNED records are never returned regardless of age."""
         rows = await self._run(
             self._execute,
-            """
-            SELECT * FROM memory_records
+            f"""
+            {_SELECT}
              WHERE state = ? AND created_at < ?
              ORDER BY created_at ASC
              LIMIT ?
@@ -235,17 +234,13 @@ class MemoryRepository(BaseRepository):
         if channel_id:
             rows = await self._run(
                 self._execute,
-                """
-                SELECT * FROM memory_records
-                 WHERE channel_id = ?
-                 ORDER BY created_at DESC LIMIT ?
-                """,
+                f"{_SELECT} WHERE channel_id = ? ORDER BY created_at DESC LIMIT ?",
                 [channel_id, limit],
             )
         else:
             rows = await self._run(
                 self._execute,
-                "SELECT * FROM memory_records ORDER BY created_at DESC LIMIT ?",
+                f"{_SELECT} ORDER BY created_at DESC LIMIT ?",
                 [limit],
             )
         return [_row_to_record(r) for r in rows]
