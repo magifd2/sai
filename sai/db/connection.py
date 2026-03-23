@@ -35,6 +35,8 @@ class _ConnectionManager:
         # Install and load the VSS (Vector Similarity Search) extension
         self._conn.execute("INSTALL vss;")
         self._conn.execute("LOAD vss;")
+        # Required to persist HNSW indexes to disk (experimental in DuckDB VSS)
+        self._conn.execute("SET hnsw_enable_experimental_persistence = true;")
 
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:

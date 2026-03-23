@@ -229,14 +229,13 @@ def start(config_path: str) -> None:
 
 
 @cli.command()
-@click.option("--config", "config_path", default="sai.toml", help="Config file path")
-def init_db(config_path: str) -> None:
+@click.option("--db-path", default="./data/sai.db", show_default=True, help="Database file path")
+@click.option("--embed-dim", default=768, show_default=True, help="Embedding vector dimension")
+def init_db(db_path: str, embed_dim: int) -> None:
     """Initialize the database schema."""
-    cfg = load_config(config_path)
-    setup_logging(cfg.log_level)
-    connection_manager.initialize(cfg.database.path)
-    init_schema(embed_dim=cfg.llm.embed_dim)
-    click.echo(f"Database initialized at: {cfg.database.path}")
+    connection_manager.initialize(db_path)
+    init_schema(embed_dim=embed_dim)
+    click.echo(f"Database initialized at: {db_path}")
 
 
 @cli.command()
