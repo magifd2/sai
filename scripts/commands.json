@@ -22,5 +22,13 @@
     "required_args": ["host"],
     "max_runtime_seconds": 20,
     "allowed_users": []
+  },
+  {
+    "name": "datetime_info",
+    "description": "Show the current date, time, day of week, and timezone. Optionally accepts a timezone name (e.g. Asia/Tokyo, America/New_York, UTC).",
+    "script_path": "datetime_info.sh",
+    "required_args": [],
+    "max_runtime_seconds": 5,
+    "allowed_users": []
   }
 ]
