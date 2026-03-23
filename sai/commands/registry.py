@@ -24,7 +24,7 @@ class CommandDefinition(BaseModel):
 
 class CommandRegistry:
     def __init__(self, scripts_dir: str) -> None:
-        self._scripts_dir = Path(scripts_dir)
+        self._scripts_dir = Path(scripts_dir).resolve()
         self._commands: list[CommandDefinition] = []
 
     def load(self) -> None:

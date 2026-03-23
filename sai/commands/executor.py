@@ -81,7 +81,7 @@ class CommandExecutor:
     ) -> None:
         self._registry = registry
         self._guard = process_guard
-        self._sandbox_dir = Path(sandbox_dir)
+        self._sandbox_dir = Path(sandbox_dir).resolve()
         self._sandbox_dir.mkdir(parents=True, exist_ok=True)
         self._max_output_chars = max_output_chars
 
