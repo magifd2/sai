@@ -232,11 +232,14 @@ class Application:
         context_snippets = [r.content for r in context_records]
 
         request_nonce = nonce_mod.generate()
+        now = utcnow().astimezone()  # local time with tz offset
+        current_datetime = now.strftime("%Y-%m-%d %H:%M:%S %Z")
         messages = prompts.build_rag_answer_prompt(
             user_text=clean_text,
             context_snippets=context_snippets,
             request_nonce=request_nonce,
             workspace_name=self._workspace_name,
+            current_datetime=current_datetime,
         )
 
         try:

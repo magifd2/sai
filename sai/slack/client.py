@@ -26,7 +26,7 @@ class SlackClient:
         if thread_ts:
             kwargs["thread_ts"] = thread_ts
         resp = await self._client.chat_postMessage(**kwargs)
-        return dict(resp)
+        return resp.data
 
     async def get_user_info(self, user_id: str) -> Optional[dict]:
         try:

@@ -87,8 +87,8 @@ class CommandInterpreter:
         async def _call() -> str:
             return await self._llm.chat(
                 messages,
-                max_tokens=20,
-                temperature=0.0,
+                max_tokens=50,
+                temperature=0.1,
                 nonce=request_nonce,
             )
 
