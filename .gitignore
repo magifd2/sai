@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# uv
+.venv/
+uv.lock
+
+# Data (never commit)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/chroma/
+data/sandbox/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

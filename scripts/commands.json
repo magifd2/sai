@@ -1,0 +1,26 @@
+[
+  {
+    "name": "server_status",
+    "description": "Show current server status, CPU load, and memory usage",
+    "script_path": "server_status.sh",
+    "required_args": [],
+    "max_runtime_seconds": 10,
+    "allowed_users": []
+  },
+  {
+    "name": "disk_usage",
+    "description": "Show disk usage for a given path or the whole system",
+    "script_path": "disk_usage.sh",
+    "required_args": ["path"],
+    "max_runtime_seconds": 15,
+    "allowed_users": []
+  },
+  {
+    "name": "ping_host",
+    "description": "Ping a hostname or IP address to check connectivity",
+    "script_path": "ping_host.sh",
+    "required_args": ["host"],
+    "max_runtime_seconds": 20,
+    "allowed_users": []
+  }
+]
