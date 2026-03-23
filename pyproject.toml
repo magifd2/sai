@@ -25,8 +25,8 @@ sai = "sai.main:cli"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.2.0",
     "pytest-asyncio>=0.23.7",
     "pytest-cov>=5.0.0",
