@@ -21,6 +21,7 @@ class MemoryRecord(BaseModel):
     channel_id: str
     channel_name: Optional[str] = None
     ts: str                           # Slack message timestamp string
+    thread_ts: Optional[str] = None  # Thread root ts; None for top-level messages
     created_at: datetime
     content: str
     state: MemoryState

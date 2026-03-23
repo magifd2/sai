@@ -214,6 +214,7 @@ class Application:
             channel_id=event.channel_id,
             channel_name=channel_name,
             ts=event.ts,
+            thread_ts=event.thread_ts,
             created_at=event.received_at,
             content=event.text,
             state=MemoryState.HOT,
@@ -270,12 +271,135 @@ class Application:
             # Command index resolved to nothing — fall through to RAG
             logger.warning("app.plan_command_not_found", index=plan.command_index)
 
+        elif plan.action == "summarize_channel":
+            await self._handle_summarize(event, scope="channel", user_text=clean_text)
+            return
+
+        elif plan.action == "summarize_thread":
+            await self._handle_summarize(event, scope="thread", user_text=clean_text)
+            return
+
         # ── 4c. RAG answer (for "rag" or "none" or fallback) ─────────
         await self._handle_rag_answer(
             event,
             plan.rag_query or clean_text,
             current_datetime=current_datetime,
         )
+
+    # ------------------------------------------------------------------
+    # Summarize: on-demand channel or thread summary
+    # ------------------------------------------------------------------
+
+    async def _handle_summarize(
+        self,
+        event: SlackEvent,
+        scope: str,
+        user_text: str,
+    ) -> None:
+        """Generate an on-demand summary of a channel or thread."""
+        channel = await self._cache.get_channel(event.channel_id)
+        channel_name = channel.channel_name if channel else event.channel_id
+
+        if scope == "thread":
+            thread_ts = event.thread_ts or event.ts
+            records = await self._memory.find_by_thread(thread_ts, event.channel_id)
+            scope_name = f"thread in #{channel_name}"
+        else:
+            records = await self._memory.find_by_channel(event.channel_id)
+            scope_name = f"#{channel_name}"
+
+        if not records:
+            await self._slack.post_message(
+                channel=event.channel_id,
+                text=":memo: No memory records found for this "
+                     + ("thread." if scope == "thread" else "channel."),
+                thread_ts=event.thread_ts or event.ts,
+            )
+            return
+
+        # Compute time range from oldest to newest record
+        oldest = records[0].created_at
+        newest = records[-1].created_at
+        fmt = "%Y-%m-%d %H:%M UTC"
+        time_range = f"{oldest.strftime(fmt)} to {newest.strftime(fmt)}"
+
+        # Format records as readable text
+        lines = []
+        for r in records:
+            ts_str = r.created_at.strftime("%Y-%m-%d %H:%M")
+            label = f"[{ts_str}] {r.user_name}"
+            if r.is_summary:
+                label += " (summary)"
+            lines.append(f"{label}: {r.content}")
+        records_text = "\n".join(lines)
+
+        request_nonce = nonce_mod.generate()
+        messages = prompts.build_on_demand_summary_prompt(
+            records_text=records_text,
+            scope=scope,
+            scope_name=scope_name,
+            time_range=time_range,
+            request_nonce=request_nonce,
+            workspace_name=self._workspace_name,
+            response_language=self._response_language,
+            user_text=user_text,
+        )
+
+        try:
+            answer = await self._llm.chat(messages, nonce=request_nonce)
+        except Exception as exc:
+            logger.error("app.summarize_error", scope=scope, error=str(exc))
+            await self._slack.post_message(
+                channel=event.channel_id,
+                text=":warning: I encountered an error while summarising. Please try again.",
+                thread_ts=event.thread_ts or event.ts,
+            )
+            return
+
+        logger.info(
+            "app.summarize_done",
+            scope=scope,
+            channel_id=event.channel_id,
+            record_count=len(records),
+            time_range=time_range,
+        )
+
+        blocks = md_to_slack_blocks(answer)
+        partitions = split_blocks_for_slack(blocks)
+
+        if not partitions:
+            resp_data = await self._slack.post_message(
+                channel=event.channel_id,
+                text=answer,
+                thread_ts=event.thread_ts or event.ts,
+            )
+            if resp_data and resp_data.get("ts"):
+                await self._store_bot_response(
+                    text=answer,
+                    channel_id=event.channel_id,
+                    ts=resp_data["ts"],
+                    channel_name=channel_name,
+                )
+            return
+
+        first_ts: str | None = None
+        for idx, partition in enumerate(partitions):
+            resp_data = await self._slack.post_message(
+                channel=event.channel_id,
+                text=answer if idx == 0 else "\u200b",
+                blocks=partition,
+                thread_ts=event.thread_ts or event.ts,
+            )
+            if idx == 0 and resp_data:
+                first_ts = resp_data.get("ts")
+
+        if first_ts:
+            await self._store_bot_response(
+                text=answer,
+                channel_id=event.channel_id,
+                ts=first_ts,
+                channel_name=channel_name,
+            )
 
     async def _handle_command(self, event: SlackEvent, match, clean_text: str) -> None:
         # Check per-command user allowlist

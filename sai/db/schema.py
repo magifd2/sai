@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS memory_records (
     channel_id   VARCHAR NOT NULL,
     channel_name VARCHAR,
     ts           VARCHAR NOT NULL,
+    thread_ts    VARCHAR,           -- Thread root ts (NULL for top-level messages)
     created_at   DOUBLE NOT NULL,
     content      TEXT    NOT NULL,
     state        VARCHAR NOT NULL,
@@ -45,6 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_mem_user    ON memory_records (user_id);
 CREATE INDEX IF NOT EXISTS idx_mem_time    ON memory_records (created_at);
 CREATE INDEX IF NOT EXISTS idx_mem_ts      ON memory_records (ts);
 CREATE INDEX IF NOT EXISTS idx_mem_channel ON memory_records (channel_id);
+CREATE INDEX IF NOT EXISTS idx_mem_thread  ON memory_records (thread_ts);
 
 -- ----------------------------------------------------------------
 -- Archived records (cold storage)
@@ -161,3 +163,8 @@ def init_schema(embed_dim: int = _DEFAULT_EMBED_DIM) -> None:
     with connection_manager.lock:
         for stmt in _split_statements(_build_ddl(embed_dim)):
             conn.execute(stmt)
+        # Migrations: add columns introduced after initial schema creation.
+        # ALTER TABLE ADD COLUMN IF NOT EXISTS is idempotent in DuckDB.
+        conn.execute(
+            "ALTER TABLE memory_records ADD COLUMN IF NOT EXISTS thread_ts VARCHAR"
+        )

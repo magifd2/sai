@@ -185,6 +185,48 @@ def build_arg_extract_prompt(
     ]
 
 
+def build_on_demand_summary_prompt(
+    records_text: str,
+    scope: str,
+    scope_name: str,
+    time_range: str,
+    request_nonce: str,
+    workspace_name: str = "workspace",
+    response_language: str = "",
+    user_text: str = "",
+) -> list[ChatMessage]:
+    """Prompt for on-demand channel or thread summarisation.
+
+    scope      : "channel" or "thread"
+    scope_name : channel name or thread identifier for display
+    time_range : human-readable range, e.g. "2026-03-20 10:00 to 2026-03-24 15:00 UTC"
+    records_text: concatenated memory records to summarise
+    """
+    system = _security_preamble(request_nonce, workspace_name) + (
+        f"\nYou are summarising the {scope} '{scope_name}'.\n"
+        f"The memory covers: {time_range}.\n"
+        "Note: older records may already be LLM-generated summaries (WARM/COLD state), "
+        "so the summary may be less precise for older periods.\n"
+        "\nSummarisation rules:\n"
+        "- Begin with a single header line stating the scope and time range.\n"
+        "- Summarise chronologically: what happened, who was involved, key decisions or outcomes.\n"
+        "- Preserve speaker attribution where meaningful.\n"
+        "- Be concise but complete. Do not invent facts not present in the records.\n"
+        "- Use ## for section headings if the content warrants it, • for bullet lists.\n"
+    )
+
+    wrapped = nonce_mod.wrap(records_text, request_nonce, role="memory-records")
+    lang_instruction = _reply_lang_instruction(user_text, response_language) if user_text else ""
+
+    return [
+        ChatMessage(role="system", content=system),
+        ChatMessage(
+            role="user",
+            content=f"Memory records:\n{wrapped}{lang_instruction}",
+        ),
+    ]
+
+
 def build_summarize_prompt(
     records_text: str,
     request_nonce: str,

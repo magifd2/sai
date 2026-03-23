@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 class ActionPlan(BaseModel):
     """Parsed result from the planner LLM call."""
     intent: str                            # what the user wants (for logging / context)
-    action: str                            # "command" | "rag" | "none"
+    action: str                            # "command" | "rag" | "summarize_channel" | "summarize_thread" | "none"
     command_index: Optional[int] = None    # 1-based; only when action="command"
     args: dict[str, str] = {}              # extracted args; only when action="command"
     rag_query: Optional[str] = None        # refined query; only when action="rag"
@@ -37,7 +37,7 @@ class ActionPlan(BaseModel):
 class ActionPlanner:
     """Hierarchical intent → action planner backed by an LLM."""
 
-    _VALID_ACTIONS = {"command", "rag", "none"}
+    _VALID_ACTIONS = {"command", "rag", "summarize_channel", "summarize_thread", "none"}
 
     def __init__(
         self,
@@ -158,15 +158,17 @@ class ActionPlanner:
             "\nYour job is to:\n"
             "  Step 1 — Understand what the user wants (write a concise intent statement).\n"
             "  Step 2 — Choose the best action:\n"
-            '    "command" : a registered command can fulfil the request\n'
-            '    "rag"     : search past Slack messages to answer the question\n'
-            '    "none"    : the request is outside all capabilities\n'
+            '    "command"          : a registered command can fulfil the request\n'
+            '    "rag"              : search past Slack messages to answer the question\n'
+            '    "summarize_channel": user wants a summary of what happened in this channel\n'
+            '    "summarize_thread" : user wants a summary of the current thread conversation\n'
+            '    "none"             : the request is outside all capabilities\n'
             "\nRegistered commands:\n"
             f"{cmd_block}\n"
             "\nReply with ONLY this JSON object (no markdown, no extra text):\n"
             "{\n"
             '  "intent": "<one sentence describing what the user wants>",\n'
-            '  "action": "command" | "rag" | "none",\n'
+            '  "action": "command" | "rag" | "summarize_channel" | "summarize_thread" | "none",\n'
             '  "command_index": <1-based integer, omit if action != "command">,\n'
             '  "args": {"<arg>": "<value>", ...},\n'
             '  "rag_query": "<search-optimised query, omit if action != \\"rag\\">"\n'

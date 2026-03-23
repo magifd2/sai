@@ -11,7 +11,7 @@ from .base import BaseRepository
 # Explicit column list keeps row unpacking independent of schema column order
 _COLS = (
     "id, user_id, user_name, channel_id, channel_name, "
-    "ts, created_at, content, state, "
+    "ts, thread_ts, created_at, content, state, "
     "is_summary, summary_of, pinned_at, pinned_by, pin_reaction, "
     "nonce, embedding_id"
 )
@@ -21,7 +21,7 @@ _SELECT = f"SELECT {_COLS} FROM memory_records"
 def _row_to_record(row: tuple) -> MemoryRecord:
     (
         id_, user_id, user_name, channel_id, channel_name,
-        ts, created_at, content, state,
+        ts, thread_ts, created_at, content, state,
         is_summary, summary_of, pinned_at, pinned_by, pin_reaction,
         nonce, embedding_id,
     ) = row
@@ -32,6 +32,7 @@ def _row_to_record(row: tuple) -> MemoryRecord:
         channel_id=channel_id,
         channel_name=channel_name,
         ts=ts,
+        thread_ts=thread_ts,
         created_at=from_unix(created_at),
         content=content,
         state=MemoryState(state),
@@ -48,7 +49,7 @@ def _row_to_record(row: tuple) -> MemoryRecord:
 def _record_to_params(r: MemoryRecord) -> list:
     return [
         r.id, r.user_id, r.user_name, r.channel_id, r.channel_name,
-        r.ts, to_unix(r.created_at), r.content, r.state.value,
+        r.ts, r.thread_ts, to_unix(r.created_at), r.content, r.state.value,
         r.is_summary, json.dumps(r.summary_of) if r.summary_of else None,
         to_unix(r.pinned_at) if r.pinned_at else None,
         r.pinned_by, r.pin_reaction, r.nonce, r.embedding_id,
@@ -69,7 +70,7 @@ class MemoryRepository(BaseRepository):
         self._execute(
             f"""
             INSERT OR REPLACE INTO memory_records ({_COLS})
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             _record_to_params(record),
         )
@@ -80,7 +81,7 @@ class MemoryRepository(BaseRepository):
 
     def _save_many_sync(self, records: list[MemoryRecord]) -> None:
         self._executemany(
-            f"INSERT OR REPLACE INTO memory_records ({_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            f"INSERT OR REPLACE INTO memory_records ({_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [_record_to_params(r) for r in records],
         )
 
@@ -269,6 +270,48 @@ class MemoryRepository(BaseRepository):
             self._execute,
             f"{_SELECT} WHERE id LIKE ?",
             [prefix + "%"],
+        )
+        return [_row_to_record(r) for r in rows]
+
+    async def find_by_channel(
+        self,
+        channel_id: str,
+        limit: int = 300,
+    ) -> list[MemoryRecord]:
+        """Return all active records for a channel, oldest first.
+
+        Used for on-demand channel summarisation.  limit=0 means no limit.
+        """
+        limit_clause = "" if limit == 0 else "LIMIT ?"
+        params: list = [channel_id]
+        if limit != 0:
+            params.append(limit)
+        rows = await self._run(
+            self._execute,
+            f"{_SELECT} WHERE channel_id = ? ORDER BY created_at ASC {limit_clause}",
+            params,
+        )
+        return [_row_to_record(r) for r in rows]
+
+    async def find_by_thread(
+        self,
+        thread_ts: str,
+        channel_id: str,
+    ) -> list[MemoryRecord]:
+        """Return all active records belonging to a Slack thread, oldest first.
+
+        Matches the root message (ts = thread_ts) and all replies
+        (thread_ts = thread_ts) in the given channel.
+        """
+        rows = await self._run(
+            self._execute,
+            f"""
+            {_SELECT}
+             WHERE channel_id = ?
+               AND (ts = ? OR thread_ts = ?)
+             ORDER BY created_at ASC
+            """,
+            [channel_id, thread_ts, thread_ts],
         )
         return [_row_to_record(r) for r in rows]
 
