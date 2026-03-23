@@ -18,6 +18,7 @@ from .commands.executor import CommandExecutor
 from .commands.registry import CommandRegistry
 from .llm.planner import ActionPlanner
 from .db import connection_manager, init_schema
+from .db.schema import drop_all_data
 from .db.repositories import (
     ACLRepository, ChannelRepository, CommandLogRepository,
     EmbeddingRepository, MemoryRepository, RateLimitRepository, UserRepository,
@@ -233,11 +234,35 @@ def start(config_path: str) -> None:
 @cli.command()
 @click.option("--db-path", default="./data/sai.db", show_default=True, help="Database file path")
 @click.option("--embed-dim", default=768, show_default=True, help="Embedding vector dimension")
-def init_db(db_path: str, embed_dim: int) -> None:
-    """Initialize the database schema."""
-    connection_manager.initialize(db_path)
-    init_schema(embed_dim=embed_dim)
-    click.echo(f"Database initialized at: {db_path}")
+@click.option("--reset", is_flag=True, default=False,
+              help="Drop all data and reinitialise from scratch (destructive).")
+@click.option("--yes", is_flag=True, default=False,
+              help="Skip confirmation prompt when using --reset.")
+def init_db(db_path: str, embed_dim: int, reset: bool, yes: bool) -> None:
+    """Initialise or migrate the database schema.
+
+    Without --reset: safe to run at any time — creates missing tables and
+    applies column migrations without touching existing data.
+
+    With --reset: permanently deletes ALL stored memories, embeddings,
+    cache entries, and audit logs, then recreates the schema from scratch.
+    """
+    if reset:
+        if not yes:
+            click.echo(
+                "WARNING: This will permanently delete ALL stored memories, embeddings,\n"
+                "         user/channel cache, rate-limit records, and command audit logs.\n"
+                f"         Database: {db_path}"
+            )
+            click.confirm("Are you sure you want to reset the database?", abort=True)
+        connection_manager.initialize(db_path)
+        drop_all_data(embed_dim=embed_dim)
+        init_schema(embed_dim=embed_dim)
+        click.echo(f"Database reset and reinitialised at: {db_path}")
+    else:
+        connection_manager.initialize(db_path)
+        init_schema(embed_dim=embed_dim)
+        click.echo(f"Database initialised at: {db_path}")
 
 
 @cli.group()

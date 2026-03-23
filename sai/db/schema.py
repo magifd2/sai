@@ -157,6 +157,31 @@ def _split_statements(sql: str) -> list[str]:
     return statements
 
 
+_DROP_TABLES = [
+    "memory_embeddings",
+    "memory_archive",
+    "memory_records",
+    "users",
+    "channels",
+    "acl_entries",
+    "command_log",
+    "rate_limits",
+]
+
+
+def drop_all_data(embed_dim: int = _DEFAULT_EMBED_DIM) -> None:
+    """Drop all tables and recreate the schema from scratch.
+
+    This permanently deletes every stored memory, embedding, user cache
+    entry, and audit log.  Call init_schema() afterwards (or use the
+    combined reset path in main.py).
+    """
+    conn = connection_manager.conn
+    with connection_manager.lock:
+        for table in _DROP_TABLES:
+            conn.execute(f"DROP TABLE IF EXISTS {table}")
+
+
 def init_schema(embed_dim: int = _DEFAULT_EMBED_DIM) -> None:
     """Create all tables and indexes. Safe to call repeatedly."""
     conn = connection_manager.conn
