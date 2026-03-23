@@ -258,7 +258,7 @@ class Application:
         context_records = await self._retriever.retrieve(clean_text)
         # Include speaker identity so the LLM knows who said what
         context_snippets = [
-            f"[{r.user_id} ({r.user_name})]: {r.content}"
+            f"[{r.user_name} ({r.user_id})]: {r.content}"
             for r in context_records
         ]
 
@@ -269,7 +269,7 @@ class Application:
         # Resolve requester display info
         requester_user = await self._cache.get_user(event.user_id)
         requester_name = requester_user.user_name if requester_user else event.user_id
-        requester = f"{event.user_id} ({requester_name})"
+        requester = f"{requester_name} ({event.user_id})"
 
         messages = prompts.build_rag_answer_prompt(
             user_text=clean_text,
