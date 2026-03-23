@@ -90,7 +90,7 @@ class EmbeddingRepository(BaseRepository):
             """
             params = [query_embedding, *exclude_record_ids, n_results]
         else:
-            sql = """
+            sql = f"""
                 SELECT embedding_id, record_id,
                        array_cosine_similarity(embedding, ?::FLOAT[{self._embed_dim}]) AS score
                   FROM memory_embeddings
