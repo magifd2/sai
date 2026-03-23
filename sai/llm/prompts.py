@@ -19,13 +19,25 @@ from . import nonce as nonce_mod
 _JP_RE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
 
 
-def _reply_lang_instruction(text: str) -> str:
-    """Return an explicit reply-language instruction appended to the user message.
-    Detected per-request so the model sees it in the user turn, where small
-    local models tend to pay more attention than to the system prompt."""
+def _reply_lang_instruction(user_text: str, response_language: str = "") -> str:
+    """Return an explicit reply-language instruction for the user message turn.
+
+    Priority:
+      1. response_language from config (explicit, consistent across workspace)
+      2. Auto-detect from user_text (Japanese CJK/kana → Japanese, else English)
+
+    Placing the instruction in the user turn (not just system prompt) improves
+    compliance with small local models.
+    """
+    lang = response_language.strip() or (_auto_detect_lang(user_text))
+    return f"\n\n(Reply in {lang}.)"
+
+
+def _auto_detect_lang(text: str) -> str:
+    """Heuristic language detection based on script presence."""
     if _JP_RE.search(text):
-        return "\n\n（必ず日本語で回答してください）"
-    return "\n\n(Reply in English.)"
+        return "Japanese"
+    return "English"
 
 
 def _security_preamble(
@@ -56,6 +68,7 @@ def build_rag_answer_prompt(
     workspace_name: str = "workspace",
     current_datetime: Optional[str] = None,
     available_commands: Optional[list[str]] = None,
+    response_language: str = "",
 ) -> list[ChatMessage]:
     """Prompt for answering a user question using RAG-retrieved memory context."""
     if available_commands:
@@ -94,7 +107,7 @@ def build_rag_answer_prompt(
     user_content = (
         f"Context from memory:\n{wrapped_context}\n\n"
         f"User question:\n{wrapped_user}"
-        f"{_reply_lang_instruction(user_text)}"
+        f"{_reply_lang_instruction(user_text, response_language)}"
     )
 
     return [

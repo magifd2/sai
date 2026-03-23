@@ -58,6 +58,7 @@ class Application:
         max_input_chars: int = 2000,
         block_on_injection: bool = True,
         workspace_name: str = "workspace",
+        response_language: str = "",
     ) -> None:
         self._slack = slack_client
         self._cache = cache
@@ -75,6 +76,7 @@ class Application:
         self._max_input_chars = max_input_chars
         self._block_on_injection = block_on_injection
         self._workspace_name = workspace_name
+        self._response_language = response_language
 
     async def handle_event(self, event: SlackEvent) -> None:
         """Main event dispatch — entry point for all Slack events."""
@@ -257,6 +259,7 @@ class Application:
             workspace_name=self._workspace_name,
             current_datetime=current_datetime,
             available_commands=self._cmd_registry.menu or None,
+            response_language=self._response_language,
         )
 
         try:

@@ -16,6 +16,13 @@ class SlackConfig(BaseModel):
     bot_token: str = Field(description="Slack bot token (xoxb-...)")
     app_token: str = Field(description="Slack app-level token for Socket Mode (xapp-...)")
     workspace_name: str = Field(default="workspace", description="Display name for this workspace")
+    response_language: str = Field(
+        default="",
+        description=(
+            "Language for bot responses (e.g. 'Japanese', 'English'). "
+            "Leave empty to auto-detect from each user message."
+        ),
+    )
 
 
 class LLMConfig(BaseModel):

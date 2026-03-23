@@ -138,6 +138,7 @@ def build_application(cfg: SaiConfig) -> _AppBundle:
         max_input_chars=cfg.security.max_input_chars,
         block_on_injection=cfg.security.injection_block_on_detect,
         workspace_name=cfg.slack.workspace_name,
+        response_language=cfg.slack.response_language,
     )
 
     return _AppBundle(
