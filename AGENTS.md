@@ -41,6 +41,11 @@ uv run sai check
 
 # Start the bot
 uv run sai start
+
+# Memory monitoring (run while SAI is stopped)
+uv run sai memory stats                          # record counts by state
+uv run sai memory list [--state hot|warm|cold|pinned] [--user ID] [--channel ID] [--limit N]
+uv run sai memory show <record-id-or-prefix>     # full detail of one record
 ```
 
 **Always run `uv run pytest` and confirm all tests pass before committing.**

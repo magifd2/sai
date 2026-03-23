@@ -236,6 +236,27 @@ See [docs/development-rules.md](docs/development-rules.md) for the full security
 
 ---
 
+## Memory Monitoring
+
+While SAI is stopped, you can inspect the memory database from the CLI:
+
+```bash
+# Record counts by state
+uv run sai memory stats
+
+# List recent records (supports --state / --user / --channel / --limit filters)
+uv run sai memory list
+uv run sai memory list --state pinned
+uv run sai memory list --channel C09BLA40DFY --limit 50
+
+# Full detail of one record (use the ID prefix shown in list)
+uv run sai memory show <id-prefix>
+```
+
+Memory states: `hot` (< 24h, full text) → `warm` (1–7 days, summarized) → `cold` → archived; `pinned` never ages.
+
+---
+
 ## Running Tests
 
 ```bash

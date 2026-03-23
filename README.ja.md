@@ -272,6 +272,27 @@ echo "$target の確認結果："
 
 ---
 
+## メモリのモニタリング
+
+SAI停止中に、CLIからメモリデータベースの内容を確認できます：
+
+```bash
+# 状態別レコード件数
+uv run sai memory stats
+
+# レコード一覧（--state / --user / --channel / --limit でフィルタ可能）
+uv run sai memory list
+uv run sai memory list --state pinned
+uv run sai memory list --channel C09BLA40DFY --limit 50
+
+# 1件の詳細表示（list の ID 列の先頭数文字でもOK）
+uv run sai memory show <id-prefix>
+```
+
+メモリの状態遷移：`hot`（24時間以内、原文）→ `warm`（1〜7日、要約）→ `cold` → アーカイブ。`pinned` は永続。
+
+---
+
 ## テストの実行
 
 ```bash
