@@ -10,7 +10,9 @@ def test_inline_bold():
     assert _inline_md("__bold__") == "*bold*"
 
 
-def test_inline_italic():
+def test_inline_italic_passthrough():
+    # Single * and _ are Slack-native mrkdwn — pass through unchanged
+    assert _inline_md("*bold*") == "*bold*"
     assert _inline_md("_italic_") == "_italic_"
 
 
@@ -27,6 +29,11 @@ def test_inline_combined():
     assert "*bold*" in result
     assert "_italic_" in result
     assert "~strike~" in result
+
+
+def test_inline_slack_native_bold_unchanged():
+    # LLMs often output Slack-style *bold* — must not be altered
+    assert _inline_md("*サーバー状態*") == "*サーバー状態*"
 
 
 # ── md_to_slack_blocks ────────────────────────────────────────────────────────

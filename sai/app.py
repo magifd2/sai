@@ -271,6 +271,7 @@ class Application:
             return
 
         blocks = md_to_slack_blocks(answer)
+        logger.debug("app.rag_blocks", block_count=len(blocks))
         await self._slack.post_message(
             channel=event.channel_id,
             text=answer,          # fallback plain text for notifications

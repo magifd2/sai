@@ -143,21 +143,27 @@ def _render_list(lines: list[str]) -> str:
 
 
 def _inline_md(text: str) -> str:
-    """Convert inline Markdown syntax to Slack mrkdwn."""
+    """Convert inline Markdown syntax to Slack mrkdwn.
+
+    Conversion table:
+      Markdown **text**  → Slack *text*  (bold)
+      Markdown __text__  → Slack *text*  (bold)
+      Markdown ~~text~~  → Slack ~text~  (strikethrough)
+      Markdown [l](url)  → Slack <url|l> (link)
+
+    Single *text* and _text_ are passed through unchanged because:
+      - LLMs frequently output Slack-native mrkdwn (*bold*, _italic_)
+      - Slack already renders *text* as bold and _text_ as italic in
+        section block mrkdwn, so no conversion is needed.
+    """
     # Links: [label](url) → <url|label>
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<\2|\1>", text)
-    # Bold first — use a placeholder so the italic regex won't re-match it.
-    # \x01 is a control char that won't appear in normal text.
-    _ph = "\x01"
-    text = re.sub(r"\*\*(.+?)\*\*", lambda m: f"{_ph}{m.group(1)}{_ph}", text)
-    text = re.sub(r"__(.+?)__", lambda m: f"{_ph}{m.group(1)}{_ph}", text)
-    # Italic: single * or _  (bold placeholders are invisible to this regex)
-    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"_\1_", text)
-    text = re.sub(r"(?<!_)_(?!_)(.+?)(?<!_)_(?!_)", r"_\1_", text)
+    # Markdown double-star/underscore bold → Slack single-star bold
+    text = re.sub(r"\*\*(.+?)\*\*", r"*\1*", text)
+    text = re.sub(r"__(.+?)__", r"*\1*", text)
     # Strikethrough: ~~text~~ → ~text~
     text = re.sub(r"~~(.+?)~~", r"~\1~", text)
-    # Restore bold placeholders → Slack *bold*
-    text = text.replace("\x01", "*")
+    # Single *text* and _text_ left as-is (already valid Slack mrkdwn)
     return text
 
 

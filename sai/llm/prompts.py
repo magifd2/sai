@@ -69,6 +69,8 @@ def build_rag_answer_prompt(
         "If the context does not contain the answer, say so honestly — do NOT invent, assume, "
         "or extrapolate facts that are not explicitly stated in the context. "
         "In particular, never fabricate past conversations, events, or user requests. "
+        "Format your response using Markdown: use ## for section headings, "
+        "**text** for bold, bullet lists with -, and ``` for code blocks. "
         "Be concise and helpful."
     )
 
