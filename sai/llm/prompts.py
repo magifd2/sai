@@ -39,10 +39,30 @@ def build_rag_answer_prompt(
     request_nonce: str,
     workspace_name: str = "workspace",
     current_datetime: Optional[str] = None,
+    available_commands: Optional[list[str]] = None,
 ) -> list[ChatMessage]:
     """Prompt for answering a user question using RAG-retrieved memory context."""
+    if available_commands:
+        cmd_lines = "\n".join(f"  - {desc}" for desc in available_commands)
+        capabilities = (
+            "\nYour actual capabilities are strictly limited to the following:\n"
+            "1. Answer questions using past Slack messages stored in memory (RAG).\n"
+            "2. Execute the pre-registered commands listed below — nothing else:\n"
+            f"{cmd_lines}\n"
+            "3. Permanently remember any message that receives a pin reaction.\n"
+            "Do NOT claim to have any other capabilities (e.g. reminders, file sharing, "
+            "calendar integration, task management). If asked about something outside these "
+            "capabilities, say so honestly.\n"
+        )
+    else:
+        capabilities = (
+            "\nAnswer questions using past Slack messages stored in memory. "
+            "Do not claim capabilities you do not have.\n"
+        )
+
     system = _security_preamble(request_nonce, workspace_name, current_datetime) + (
-        "\nAnswer the user's question using the provided context if relevant. "
+        capabilities
+        + "Answer the user's question using the provided context if relevant. "
         "Be concise and helpful. If the context does not contain enough information, "
         "say so honestly. "
         "Always reply in the same language the user used in their message."

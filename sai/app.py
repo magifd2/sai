@@ -240,6 +240,7 @@ class Application:
             request_nonce=request_nonce,
             workspace_name=self._workspace_name,
             current_datetime=current_datetime,
+            available_commands=self._cmd_registry.menu or None,
         )
 
         try:
