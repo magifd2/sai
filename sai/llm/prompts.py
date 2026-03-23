@@ -62,9 +62,11 @@ def build_rag_answer_prompt(
 
     system = _security_preamble(request_nonce, workspace_name, current_datetime) + (
         capabilities
-        + "Answer the user's question using the provided context if relevant. "
-        "Be concise and helpful. If the context does not contain enough information, "
-        "say so honestly. "
+        + "Answer the user's question using ONLY the information in the provided context below. "
+        "If the context does not contain the answer, say so honestly — do NOT invent, assume, "
+        "or extrapolate facts that are not explicitly stated in the context. "
+        "In particular, never fabricate past conversations, events, or user requests. "
+        "Be concise and helpful. "
         "Always reply in the same language the user used in their message."
     )
 
