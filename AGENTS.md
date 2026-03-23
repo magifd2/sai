@@ -12,6 +12,7 @@ SAI is a Slack bot that:
 - Stores messages in a memory system with automatic lifecycle management (HOT → WARM → COLD → ARCHIVE)
 - Permanently stores messages that receive a configured reaction (PINNED state)
 - Answers @mention questions using RAG over stored memories
+- Generates on-demand summaries of a channel or thread (`summarize_channel` / `summarize_thread` intents)
 - Executes pre-registered shell scripts via natural language command interpretation
 - Runs entirely on a local LLM via LM Studio (OpenAI-compatible API)
 
@@ -66,16 +67,22 @@ uv run sai memory show <record-id-or-prefix>     # full detail of one record
 
 ```
 parse_event()
-  → ACL check          ← FIRST, always
-  → rate limit check   ← SECOND, always
+  → stale event guard  ← drop events older than startup_time − 30 s
+  → dedup guard        ← drop re-delivered events (key: ts#channel_id#event_type)
+  → ACL check          ← FIRST security check, always
+  → rate limit check   ← SECOND always
   → sanitize input
   → nonce + XML wrap
-  → LLM call
+  → planner (intent → action)
+  → dispatch:
+      command          → execute script + audit log
+      summarize_*      → fetch records + LLM summary
+      rag / none       → RAG retrieval + LLM answer
   → strip response tags
   → post to Slack
 ```
 
-Defined in `sai/app.py`. Do not add processing before the ACL check.
+Defined in `sai/app.py`. The stale/dedup guards run before ACL as they are infrastructure-level filters, not security checks. Do not add security processing before the ACL check.
 
 ### Prompt construction is centralized
 

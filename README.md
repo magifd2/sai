@@ -124,6 +124,28 @@ Reply to any thread that SAI has already participated in — without needing to 
 
 ---
 
+### 6. On-demand channel / thread summarisation
+
+Ask SAI to summarise what happened in a channel or thread:
+
+```
+@SAI summarise this channel
+@SAI summarise this thread
+```
+
+SAI retrieves all stored memory records for the requested scope, generates a summary, and clearly states the time range covered by the records:
+
+```
+## Summary of #general — 2026-03-20 10:00 UTC to 2026-03-24 15:30 UTC
+
+• The team discussed the Q1 release plan ...
+• Bob and Alice agreed on the API design ...
+```
+
+> **Note:** Records older than 24 hours may already be LLM-generated summaries (WARM/COLD state). Long-range summaries are therefore "summaries of summaries" and may be less precise for older periods. SAI notes this in the response.
+
+---
+
 ### What SAI Does NOT Do
 
 - SAI does **not** proactively send messages — it only replies when @mentioned

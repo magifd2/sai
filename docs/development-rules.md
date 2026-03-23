@@ -55,16 +55,23 @@ The event processing pipeline order is mandatory — never reorder:
 
 ```
 Event received
-  → ACL check          ← always first
+  → Stale event guard  ← drop if ts < startup_time − 30 s (infrastructure filter)
+  → Dedup guard        ← drop re-delivered events, key: ts#channel_id#event_type
+  → ACL check          ← always first security check
   → Rate limit check   ← always second
   → Input sanitize     (Sanitizer)
   → Nonce generate + XML encapsulate
-  → LLM call
+  → Planner (intent → action)
+  → Dispatch:
+      command        → script execution + audit log
+      summarize_*    → memory fetch + LLM summary
+      rag / none     → RAG retrieval + LLM answer
   → Response post-process  (strip think/reasoning tags)
   → Reply to Slack
 ```
 
-- **No processing before ACL check**
+- **Stale/dedup guards are infrastructure filters — not security checks**
+- **No security processing before ACL check**
 - **Rate limit check must follow immediately after ACL pass**
 - Nonces must be generated with `secrets.token_hex(16)` (unpredictable)
 - LLM output posted to Slack must be length-truncated; be careful with code block content
