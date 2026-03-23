@@ -101,7 +101,16 @@ class Application:
 
         # ── 4. Dispatch by event type ────────────────────────────────
         if event.event_type == SlackEventType.MESSAGE:
-            await self._handle_message(event, user)
+            # Thread reply: if the parent message is already in memory,
+            # treat the reply as a mention to continue the conversation.
+            if (
+                event.thread_ts
+                and event.thread_ts != event.ts
+                and await self._memory.get_by_ts(event.thread_ts, event.channel_id)
+            ):
+                await self._handle_mention(event, user)
+            else:
+                await self._handle_message(event, user)
 
         elif event.event_type == SlackEventType.APP_MENTION:
             await self._handle_mention(event, user)
