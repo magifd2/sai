@@ -21,10 +21,13 @@ class SlackClient:
         channel: str,
         text: str,
         thread_ts: Optional[str] = None,
+        blocks: Optional[list[dict]] = None,
     ) -> dict:
         kwargs: dict[str, Any] = {"channel": channel, "text": text}
         if thread_ts:
             kwargs["thread_ts"] = thread_ts
+        if blocks:
+            kwargs["blocks"] = blocks
         resp = await self._client.chat_postMessage(**kwargs)
         return resp.data
 

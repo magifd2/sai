@@ -31,6 +31,7 @@ from .security.ddos import RateLimiter
 from .slack.cache import CacheManager
 from .slack.client import SlackClient
 from .slack.events import SlackEvent, SlackEventType
+from .slack.markdown import md_to_slack_blocks
 from .utils.ids import new_id
 from .utils.logging import get_logger
 from .utils.time import utcnow
@@ -254,9 +255,11 @@ class Application:
             )
             return
 
+        blocks = md_to_slack_blocks(answer)
         await self._slack.post_message(
             channel=event.channel_id,
-            text=answer,
+            text=answer,          # fallback plain text for notifications
+            blocks=blocks or None,
             thread_ts=event.thread_ts or event.ts,
         )
 
