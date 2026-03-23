@@ -142,6 +142,14 @@ class Application:
         if self._is_duplicate_event(event):
             return
 
+        logger.info(
+            "app.event_received",
+            event_type=event.event_type.value,
+            user_id=event.user_id,
+            channel_id=event.channel_id,
+            ts=event.ts,
+        )
+
         # ── 1. Resolve user metadata ──────────────────────────────────
         user = await self._cache.get_user(event.user_id)
         is_bot = user.is_bot if user else event.is_bot
@@ -155,6 +163,11 @@ class Application:
         # ── 3. Rate limit check ───────────────────────────────────────
         rl_result = await self._rate_limiter.check_and_increment(event.user_id)
         if not rl_result.allowed:
+            logger.warning(
+                "app.rate_limited",
+                user_id=event.user_id,
+                event_type=event.event_type.value,
+            )
             if event.event_type == SlackEventType.APP_MENTION:
                 await self._slack.post_message(
                     channel=event.channel_id,
