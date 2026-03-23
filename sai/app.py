@@ -13,6 +13,8 @@ Processing order (security rules — never reorder):
      - REACTION_ADDED   → pin memory if reaction is in pin_reactions list
 """
 
+import time
+from collections import OrderedDict
 from typing import Optional
 
 from .commands.executor import CommandExecutor
@@ -77,9 +79,48 @@ class Application:
         self._block_on_injection = block_on_injection
         self._workspace_name = workspace_name
         self._response_language = response_language
+        # Dedup cache: protects against Slack SDK re-delivering events on reconnect.
+        # Keys are "ts#channel_id"; values are the monotonic time of first processing.
+        self._seen_events: OrderedDict[str, float] = OrderedDict()
+        self._seen_events_ttl: float = 300.0  # 5 minutes
+
+    def _is_duplicate_event(self, event: SlackEvent) -> bool:
+        """Return True if this event has already been processed (dedup guard).
+
+        Slack Socket Mode may re-deliver events on reconnection. We track
+        recent (ts, channel_id) pairs and discard any repeat within the TTL.
+        """
+        key = f"{event.ts}#{event.channel_id}"
+        now = time.monotonic()
+
+        if key in self._seen_events:
+            logger.warning(
+                "app.duplicate_event_dropped",
+                ts=event.ts,
+                channel_id=event.channel_id,
+                event_type=event.event_type.value,
+            )
+            return True
+
+        self._seen_events[key] = now
+
+        # Evict entries older than TTL (OrderedDict is insertion-ordered)
+        cutoff = now - self._seen_events_ttl
+        while self._seen_events:
+            oldest_key, oldest_time = next(iter(self._seen_events.items()))
+            if oldest_time < cutoff:
+                self._seen_events.popitem(last=False)
+            else:
+                break
+
+        return False
 
     async def handle_event(self, event: SlackEvent) -> None:
         """Main event dispatch — entry point for all Slack events."""
+
+        # ── 0. Dedup guard (re-delivered events on SDK reconnect) ─────
+        if self._is_duplicate_event(event):
+            return
 
         # ── 1. Resolve user metadata ──────────────────────────────────
         user = await self._cache.get_user(event.user_id)
