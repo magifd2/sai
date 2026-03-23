@@ -180,6 +180,8 @@ cp sai.toml.example sai.toml
 
 # 4. Initialize the database
 uv run sai init-db
+# To wipe all data and start fresh (prompts for confirmation):
+# uv run sai init-db --reset
 
 # 5. Verify LLM connectivity
 uv run sai check

@@ -218,6 +218,8 @@ cp sai.toml.example sai.toml
 
 # 4. データベースの初期化
 uv run sai init-db
+# 全データを削除して初期化し直す場合（確認プロンプトあり）:
+# uv run sai init-db --reset
 
 # 5. LLMへの接続確認
 uv run sai check

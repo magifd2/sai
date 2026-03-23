@@ -34,8 +34,12 @@ uv run pytest
 # Run with coverage
 uv run pytest --cov=sai --cov-report=term-missing
 
-# Initialize the database
+# Initialize / migrate the database schema (safe, keeps existing data)
 uv run sai init-db
+
+# Reset the database — drops ALL data and recreates schema from scratch
+uv run sai init-db --reset          # prompts for confirmation
+uv run sai init-db --reset --yes    # skips confirmation (for scripts)
 
 # Check LLM connectivity
 uv run sai check
