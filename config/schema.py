@@ -81,6 +81,14 @@ class RagConfig(BaseModel):
     similarity_threshold: float = Field(
         default=0.5, description="Minimum similarity score for RAG results (0-1)"
     )
+    use_hyde: bool = Field(
+        default=True,
+        description=(
+            "Enable HyDE (Hypothetical Document Embeddings): the query is rewritten into "
+            "a hypothetical Slack message before embedding, improving recall for "
+            "question-vs-statement mismatches. Adds one small LLM call per retrieval."
+        ),
+    )
 
 
 class SecurityConfig(BaseModel):

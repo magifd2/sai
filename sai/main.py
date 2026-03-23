@@ -97,6 +97,7 @@ def build_application(cfg: SaiConfig) -> _AppBundle:
         llm, embedding_repo, memory_repo,
         n_results=cfg.rag.n_results_default,
         similarity_threshold=cfg.rag.similarity_threshold,
+        use_hyde=cfg.rag.use_hyde,
     )
     lifecycle = LifecycleManager(
         memory_repo, embedding_repo, summarizer,
