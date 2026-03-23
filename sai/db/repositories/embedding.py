@@ -14,6 +14,9 @@ class RetrievedDoc:
 
 class EmbeddingRepository(BaseRepository):
 
+    def __init__(self, embed_dim: int = 768) -> None:
+        self._embed_dim = embed_dim
+
     async def upsert(
         self, embedding_id: str, record_id: str, embedding: list[float]
     ) -> None:
@@ -79,7 +82,7 @@ class EmbeddingRepository(BaseRepository):
             placeholders = ",".join("?" * len(exclude_record_ids))
             sql = f"""
                 SELECT embedding_id, record_id,
-                       array_cosine_similarity(embedding, ?::FLOAT[]) AS score
+                       array_cosine_similarity(embedding, ?::FLOAT[{self._embed_dim}]) AS score
                   FROM memory_embeddings
                  WHERE record_id NOT IN ({placeholders})
                  ORDER BY score DESC
@@ -89,7 +92,7 @@ class EmbeddingRepository(BaseRepository):
         else:
             sql = """
                 SELECT embedding_id, record_id,
-                       array_cosine_similarity(embedding, ?::FLOAT[]) AS score
+                       array_cosine_similarity(embedding, ?::FLOAT[{self._embed_dim}]) AS score
                   FROM memory_embeddings
                  ORDER BY score DESC
                  LIMIT ?

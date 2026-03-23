@@ -30,6 +30,8 @@ _INTERNAL_TAG_PATTERNS: list[re.Pattern] = [
     re.compile(r"\[THINK\].*?\[/THINK\]", re.DOTALL | re.IGNORECASE),
     re.compile(r"\[THINKING\].*?\[/THINKING\]", re.DOTALL | re.IGNORECASE),
     re.compile(r"\[REASONING\].*?\[/REASONING\]", re.DOTALL | re.IGNORECASE),
+    # Tokenizer special tokens leaking into output  <|token|>  e.g. <|channel|>, <|endoftext|>
+    re.compile(r"<\|[^|>]*\|>", re.IGNORECASE),
 ]
 
 

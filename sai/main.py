@@ -58,7 +58,7 @@ def build_application(cfg: SaiConfig) -> _AppBundle:
 
     # --- Repositories ---
     memory_repo = MemoryRepository()
-    embedding_repo = EmbeddingRepository()
+    embedding_repo = EmbeddingRepository(embed_dim=cfg.llm.embed_dim)
     user_repo = UserRepository()
     channel_repo = ChannelRepository()
     acl_repo = ACLRepository()
