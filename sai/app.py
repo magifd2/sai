@@ -203,6 +203,11 @@ class Application:
         if not event.text.strip():
             return
 
+        # Slack delivers both a 'message' and an 'app_mention' event for the
+        # same post (same ts).  Guard against storing the same message twice.
+        if await self._memory.get_by_ts(event.ts, event.channel_id):
+            return
+
         channel = await self._cache.get_channel(event.channel_id)
         channel_name = channel.channel_name if channel else None
         user_name = user.user_name if user else event.user_id

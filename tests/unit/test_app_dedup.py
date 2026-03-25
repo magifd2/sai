@@ -172,3 +172,63 @@ async def test_unparseable_ts_passes_stale_guard():
     await app.handle_event(event)
 
     app._acl.check.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Duplicate memory storage guard — _handle_message get_by_ts check
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_handle_message_skips_duplicate_ts():
+    """
+    When a record with the same ts already exists in memory (because the
+    'message' event was processed first), _handle_message must return early
+    without inserting a second record.
+    """
+    app = _make_app()
+
+    # Simulate existing record returned by get_by_ts
+    app._memory.get_by_ts = AsyncMock(return_value=MagicMock())
+    app._memory.save = AsyncMock()
+    app._cache.get_channel = AsyncMock()
+
+    event = _make_event(ts="1000000000.000001", event_type=SlackEventType.MESSAGE)
+    # Provide a real user object mock
+    user = MagicMock()
+
+    await app._handle_message(event, user)
+
+    # save must NOT have been called
+    app._memory.save.assert_not_called()
+    app._cache.get_channel.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_handle_message_stores_when_ts_absent():
+    """
+    When no record exists for the ts, _handle_message must proceed to store.
+    (Stops early at cache.get_channel to avoid requiring full mock chain.)
+    """
+    app = _make_app()
+
+    app._memory.get_by_ts = AsyncMock(return_value=None)
+    app._cache.get_channel = AsyncMock(return_value=MagicMock(name="general"))
+
+    # Stop early at embedding to avoid the full pipeline
+    from unittest.mock import patch
+    with patch.object(app, "_memory") as mock_mem, \
+         patch.object(app, "_cache") as mock_cache:
+        mock_mem.get_by_ts = AsyncMock(return_value=None)
+        mock_mem.save = AsyncMock()
+        mock_cache.get_channel = AsyncMock(return_value=MagicMock(name="general"))
+        # Raise after get_channel to stop without needing full embedding stack
+        mock_cache.get_channel.side_effect = StopAsyncIteration
+
+        event = _make_event(ts="1000000000.000001", event_type=SlackEventType.MESSAGE)
+        user = MagicMock()
+
+        with pytest.raises(StopAsyncIteration):
+            await app._handle_message(event, user)
+
+        # get_by_ts was called and returned None → proceeded past the guard
+        mock_mem.get_by_ts.assert_called_once_with(event.ts, event.channel_id)

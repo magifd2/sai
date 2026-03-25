@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - DB schema: `memory_records` table gains a `thread_ts` column. Existing databases are migrated automatically via `ALTER TABLE … ADD COLUMN IF NOT EXISTS` on startup.
+- Summary time range now displayed in local system time instead of UTC.
+
+### Fixed
+- Duplicate memory records were created for @mention posts: Slack delivers both a `message` and an `app_mention` event for the same post, causing `_handle_message` to be called twice and store two identical records. Added a `get_by_ts` guard at the top of `_handle_message` that skips storage when a record with the same `ts` already exists.
 
 ---
 
