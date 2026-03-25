@@ -117,6 +117,17 @@ Scripts read with `params=$(cat)` then parse with Python json. Do not pass argum
 `PINNED` records must be excluded from all aging and archival queries.
 The `find_older_than()` and `find_by_state()` queries in `MemoryRepository` already exclude pinned records by state; keep it that way.
 
+### Message edit / delete behaviour
+
+| Event | Original state | Action |
+|-------|---------------|--------|
+| `message_changed` | any | Keep original record; add a new HOT annotation record with `[edited by <user>] <new text>` |
+| `message_deleted` | `hot` or `pinned` | Delete record + embedding immediately |
+| `message_deleted` | `warm` or `cold` | Leave as-is — already summarised, cannot be un-summarised |
+| Either | not in memory | Silently ignore |
+
+Handlers: `_handle_message_changed` / `_handle_message_deleted` in `sai/app.py`.
+
 ---
 
 ## Security Rules — Non-Negotiable

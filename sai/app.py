@@ -195,6 +195,12 @@ class Application:
         elif event.event_type == SlackEventType.REACTION_ADDED:
             await self._handle_reaction(event)
 
+        elif event.event_type == SlackEventType.MESSAGE_CHANGED:
+            await self._handle_message_changed(event, user)
+
+        elif event.event_type == SlackEventType.MESSAGE_DELETED:
+            await self._handle_message_deleted(event)
+
     # ------------------------------------------------------------------
     # Message: store in HOT memory and index
     # ------------------------------------------------------------------
@@ -231,6 +237,100 @@ class Application:
             await self._retriever.index(record)
         except Exception as exc:
             logger.warning("app.index_failed", record_id=record.id, error=str(exc))
+
+    # ------------------------------------------------------------------
+    # Message edited: keep original, add HOT annotation record
+    # ------------------------------------------------------------------
+
+    async def _handle_message_changed(self, event: SlackEvent, user) -> None:
+        """Handle a Slack message_changed event.
+
+        The original memory record is kept unchanged.  A new HOT record is
+        added noting that the message was edited and what the updated text is,
+        so RAG can surface the corrected content going forward.
+        If the original message is not in memory, the edit is ignored.
+        """
+        if not event.original_ts:
+            return
+
+        original = await self._memory.get_by_ts(event.original_ts, event.channel_id)
+        if original is None:
+            logger.debug(
+                "app.message_changed_not_in_memory",
+                original_ts=event.original_ts,
+                channel_id=event.channel_id,
+            )
+            return
+
+        channel = await self._cache.get_channel(event.channel_id)
+        channel_name = channel.channel_name if channel else None
+        user_name = user.user_name if user else event.user_id
+
+        record = MemoryRecord(
+            id=new_id(),
+            user_id=event.user_id,
+            user_name=user_name,
+            channel_id=event.channel_id,
+            channel_name=channel_name,
+            ts=event.ts,
+            thread_ts=original.thread_ts,
+            created_at=event.received_at,
+            content=f"[edited by {user_name}] {event.text}",
+            state=MemoryState.HOT,
+        )
+        await self._memory.save(record)
+        try:
+            await self._retriever.index(record)
+        except Exception as exc:
+            logger.warning("app.index_failed", record_id=record.id, error=str(exc))
+
+        logger.info(
+            "app.message_edit_recorded",
+            original_ts=event.original_ts,
+            annotation_id=record.id,
+        )
+
+    # ------------------------------------------------------------------
+    # Message deleted: remove from memory if HOT or PINNED
+    # ------------------------------------------------------------------
+
+    async def _handle_message_deleted(self, event: SlackEvent) -> None:
+        """Handle a Slack message_deleted event.
+
+        If the original record is HOT or PINNED, it is removed from active
+        memory along with its embedding — the author may have deleted
+        sensitive content.  Records already in WARM or COLD state have been
+        summarised; that summary cannot be un-summarised, so they are left as-is.
+        """
+        if not event.original_ts:
+            return
+
+        original = await self._memory.get_by_ts(event.original_ts, event.channel_id)
+        if original is None:
+            logger.debug(
+                "app.message_deleted_not_in_memory",
+                original_ts=event.original_ts,
+                channel_id=event.channel_id,
+            )
+            return
+
+        if original.state in (MemoryState.HOT, MemoryState.PINNED):
+            if original.embedding_id:
+                await self._embeddings.delete(original.embedding_id)
+            await self._memory.delete(original.id)
+            logger.info(
+                "app.message_deleted_from_memory",
+                record_id=original.id,
+                state=original.state.value,
+                original_ts=event.original_ts,
+            )
+        else:
+            logger.info(
+                "app.message_deleted_already_summarized",
+                record_id=original.id,
+                state=original.state.value,
+                original_ts=event.original_ts,
+            )
 
     # ------------------------------------------------------------------
     # Mention: sanitize → RAG → LLM answer or command execution

@@ -63,9 +63,11 @@ Event received
   → Nonce generate + XML encapsulate
   → Planner (intent → action)
   → Dispatch:
-      command        → script execution + audit log
-      summarize_*    → memory fetch + LLM summary
-      rag / none     → RAG retrieval + LLM answer
+      command            → script execution + audit log
+      summarize_*        → memory fetch + LLM summary
+      rag / none         → RAG retrieval + LLM answer
+      message_changed    → add HOT annotation record (original preserved)
+      message_deleted    → delete HOT/PINNED record; leave WARM/COLD intact
   → Response post-process  (strip think/reasoning tags)
   → Reply to Slack
 ```

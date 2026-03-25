@@ -116,6 +116,15 @@ PINNED            Reaction-triggered — never ages, never archived
 
 This means SAI has good recall for recent events and useful summaries for older ones, while staying within the LLM's context window.
 
+#### Message edits and deletions
+
+SAI tracks changes to stored messages:
+
+- **Edit** — When a message is edited, the original record is kept unchanged. A new HOT record is added with the updated text (prefixed `[edited by <user>]`), so RAG retrieval can surface the corrected content going forward.
+- **Delete** — When a message is deleted:
+  - **HOT or PINNED record**: deleted from memory immediately, including its embedding. The author may have removed sensitive content.
+  - **WARM or COLD record**: already summarised — the summary cannot be undone, so the record is left as-is.
+
 ---
 
 ### 5. Thread continuation

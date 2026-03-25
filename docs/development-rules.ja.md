@@ -62,9 +62,11 @@
   → Nonce生成・XMLカプセル化
   → プランナー（intent → action）
   → ディスパッチ:
-      command      → スクリプト実行 + 監査ログ
-      summarize_*  → メモリ取得 + LLMサマリ
-      rag / none   → RAG検索 + LLM回答
+      command            → スクリプト実行 + 監査ログ
+      summarize_*        → メモリ取得 + LLMサマリ
+      rag / none         → RAG検索 + LLM回答
+      message_changed    → HOT注釈レコード追加（元レコードは保持）
+      message_deleted    → HOT/PINNEDレコード削除、WARM/COLDはそのまま
   → レスポンス後処理（think/reasoningタグ除去）
   → Slackへ返信
 ```

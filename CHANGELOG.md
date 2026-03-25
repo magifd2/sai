@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `sai init-db --reset [--yes]`: drops all stored data (memories, embeddings, cache, audit log) and recreates the schema from scratch. Without `--reset`, `init-db` remains safe to run at any time (schema migration only). A confirmation prompt is shown unless `--yes` is passed.
 - On-demand channel and thread summarisation: `@SAI このチャンネルを要約して` / `@SAI このスレッドを要約して` generates an explicit summary of stored memory records and states the time range covered. WARM/COLD records are already LLM summaries, so long-range summaries are noted as potentially less precise.
 - `MemoryRecord.thread_ts`: stores the Slack thread root timestamp so messages can be grouped by thread.
+- Message edit tracking: when a Slack message is edited (`message_changed` event), the original memory record is preserved and a new HOT annotation record is added with the updated text (prefixed `[edited by <user>]`), keeping RAG retrieval accurate.
+- Message delete handling: when a Slack message is deleted (`message_deleted` event), HOT and PINNED records are removed from memory immediately (including their embedding). WARM/COLD records that have already been summarised are left intact.
 
 ### Changed
 - DB schema: `memory_records` table gains a `thread_ts` column. Existing databases are migrated automatically via `ALTER TABLE … ADD COLUMN IF NOT EXISTS` on startup.
