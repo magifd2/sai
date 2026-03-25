@@ -197,8 +197,10 @@ Releases are managed manually. No CI/CD automation.
 #    - Add a link at the bottom: [x.y.z]: https://github.com/magifd2/sai/releases/tag/vx.y.z
 #    - Leave [Unreleased] section empty (but present) for future entries
 
-# 2. Commit
-git add CHANGELOG.md
+# 2. Bump version in pyproject.toml and sai/__init__.py
+
+# 3. Commit
+git add CHANGELOG.md pyproject.toml sai/__init__.py
 git commit -m "chore: prepare vX.Y.Z release"
 
 # 3. Tag and push
