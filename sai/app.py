@@ -317,16 +317,16 @@ class Application:
             )
             return
 
-        # Compute time range from oldest to newest record
-        oldest = records[0].created_at
-        newest = records[-1].created_at
-        fmt = "%Y-%m-%d %H:%M UTC"
+        # Compute time range from oldest to newest record (local time)
+        fmt = "%Y-%m-%d %H:%M %Z"
+        oldest = records[0].created_at.astimezone()
+        newest = records[-1].created_at.astimezone()
         time_range = f"{oldest.strftime(fmt)} to {newest.strftime(fmt)}"
 
-        # Format records as readable text
+        # Format records as readable text (local time)
         lines = []
         for r in records:
-            ts_str = r.created_at.strftime("%Y-%m-%d %H:%M")
+            ts_str = r.created_at.astimezone().strftime("%Y-%m-%d %H:%M")
             label = f"[{ts_str}] {r.user_name}"
             if r.is_summary:
                 label += " (summary)"
