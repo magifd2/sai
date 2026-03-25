@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.4.1] - 2026-03-25
+
 ### Fixed
 - Summary header showed correct local time but "UTC" timezone label — the LLM was freely reformatting the header and replacing the timezone with "UTC". Fixed by generating the header in Python (not by the LLM) and instructing the LLM to produce the body only.
 
@@ -119,6 +123,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `_SLACK_BARE_RE` in sanitizer was too broad (`<([^>]+)>`) and matched XML/HTML tags like `<script>`; restricted to Slack-specific patterns only (http/https/ftp URLs, `@U…` mentions, `#C…` channels, `!…` tokens)
 - RAG prompt incorrectly applied "answer only from context" rule to capability and chitchat questions, causing "not in context" responses to "what can you do?"
 
+[0.4.1]: https://github.com/magifd2/sai/releases/tag/v0.4.1
 [0.4.0]: https://github.com/magifd2/sai/releases/tag/v0.4.0
 [0.3.1]: https://github.com/magifd2/sai/releases/tag/v0.3.1
 [0.3.0]: https://github.com/magifd2/sai/releases/tag/v0.3.0
