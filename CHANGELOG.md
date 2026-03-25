@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.4.0] - 2026-03-25
+
 ### Added
 - `sai init-db --reset [--yes]`: drops all stored data (memories, embeddings, cache, audit log) and recreates the schema from scratch. Without `--reset`, `init-db` remains safe to run at any time (schema migration only). A confirmation prompt is shown unless `--yes` is passed.
 - On-demand channel and thread summarisation: `@SAI このチャンネルを要約して` / `@SAI このスレッドを要約して` generates an explicit summary of stored memory records and states the time range covered. WARM/COLD records are already LLM summaries, so long-range summaries are noted as potentially less precise.
@@ -112,4 +116,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `_SLACK_BARE_RE` in sanitizer was too broad (`<([^>]+)>`) and matched XML/HTML tags like `<script>`; restricted to Slack-specific patterns only (http/https/ftp URLs, `@U…` mentions, `#C…` channels, `!…` tokens)
 - RAG prompt incorrectly applied "answer only from context" rule to capability and chitchat questions, causing "not in context" responses to "what can you do?"
 
+[0.4.0]: https://github.com/magifd2/sai/releases/tag/v0.4.0
+[0.3.1]: https://github.com/magifd2/sai/releases/tag/v0.3.1
+[0.3.0]: https://github.com/magifd2/sai/releases/tag/v0.3.0
+[0.2.0]: https://github.com/magifd2/sai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/magifd2/sai/releases/tag/v0.1.0
