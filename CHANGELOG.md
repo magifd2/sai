@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
-- Summary time range showed correct local time but "UTC" timezone label — LLMs silently replace timezone abbreviations (e.g. "JST") with "UTC". Fixed by using the numeric UTC offset (`+0900`) instead of the timezone name abbreviation.
+- Summary header showed correct local time but "UTC" timezone label — the LLM was freely reformatting the header and replacing the timezone with "UTC". Fixed by generating the header in Python (not by the LLM) and instructing the LLM to produce the body only.
 
 ---
 

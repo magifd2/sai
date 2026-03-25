@@ -208,7 +208,7 @@ def build_on_demand_summary_prompt(
         "Note: older records may already be LLM-generated summaries (WARM/COLD state), "
         "so the summary may be less precise for older periods.\n"
         "\nSummarisation rules:\n"
-        "- Begin with a single header line stating the scope and time range.\n"
+        "- Do NOT write a title or header line — one will be added automatically.\n"
         "- Summarise chronologically: what happened, who was involved, key decisions or outcomes.\n"
         "- Preserve speaker attribution where meaningful.\n"
         "- Be concise but complete. Do not invent facts not present in the records.\n"

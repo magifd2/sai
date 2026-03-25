@@ -423,12 +423,12 @@ class Application:
             return
 
         # Compute time range from oldest to newest record (local time).
-        # Use %z (numeric offset e.g. +0900) rather than %Z (abbreviation e.g. JST)
-        # because LLMs tend to silently replace timezone abbreviations with "UTC".
+        # Header is built in Python (not by the LLM) to guarantee correct timestamps.
         fmt = "%Y-%m-%d %H:%M %z"
         oldest = records[0].created_at.astimezone()
         newest = records[-1].created_at.astimezone()
         time_range = f"{oldest.strftime(fmt)} to {newest.strftime(fmt)}"
+        summary_header = f"## {scope_name} summary — {time_range}"
 
         # Format records as readable text (local time)
         lines = []
@@ -471,18 +471,20 @@ class Application:
             time_range=time_range,
         )
 
-        blocks = md_to_slack_blocks(answer)
+        # Prepend the Python-generated header so the time range is always correct.
+        full_answer = f"{summary_header}\n\n{answer}"
+        blocks = md_to_slack_blocks(full_answer)
         partitions = split_blocks_for_slack(blocks)
 
         if not partitions:
             resp_data = await self._slack.post_message(
                 channel=event.channel_id,
-                text=answer,
+                text=full_answer,
                 thread_ts=event.thread_ts or event.ts,
             )
             if resp_data and resp_data.get("ts"):
                 await self._store_bot_response(
-                    text=answer,
+                    text=full_answer,
                     channel_id=event.channel_id,
                     ts=resp_data["ts"],
                     channel_name=channel_name,
@@ -493,7 +495,7 @@ class Application:
         for idx, partition in enumerate(partitions):
             resp_data = await self._slack.post_message(
                 channel=event.channel_id,
-                text=answer if idx == 0 else "\u200b",
+                text=full_answer if idx == 0 else "\u200b",
                 blocks=partition,
                 thread_ts=event.thread_ts or event.ts,
             )
@@ -502,7 +504,7 @@ class Application:
 
         if first_ts:
             await self._store_bot_response(
-                text=answer,
+                text=full_answer,
                 channel_id=event.channel_id,
                 ts=first_ts,
                 channel_name=channel_name,
