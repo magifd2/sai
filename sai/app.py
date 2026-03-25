@@ -422,8 +422,10 @@ class Application:
             )
             return
 
-        # Compute time range from oldest to newest record (local time)
-        fmt = "%Y-%m-%d %H:%M %Z"
+        # Compute time range from oldest to newest record (local time).
+        # Use %z (numeric offset e.g. +0900) rather than %Z (abbreviation e.g. JST)
+        # because LLMs tend to silently replace timezone abbreviations with "UTC".
+        fmt = "%Y-%m-%d %H:%M %z"
         oldest = records[0].created_at.astimezone()
         newest = records[-1].created_at.astimezone()
         time_range = f"{oldest.strftime(fmt)} to {newest.strftime(fmt)}"
