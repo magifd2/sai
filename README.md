@@ -1,5 +1,8 @@
 # SAI — Slack AI Command Interpreter
 
+> **Archived (2026-07-31)** — no longer used or maintained. Kept public
+> for reference.
+
 > 🇯🇵 日本語版: [README.ja.md](README.ja.md)
 
 A context-aware Slack bot that remembers your team's conversations, answers questions grounded in history, and executes commands via natural language — all powered by a local LLM.
